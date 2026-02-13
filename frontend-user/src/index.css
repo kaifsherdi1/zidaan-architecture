@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply font-sans text-primary bg-white antialiased overflow-x-hidden selection:bg-accent selection:text-primary;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-sans font-bold tracking-tighter text-black uppercase;
+  }
+
+  /* Editorial style utilities */
+  .font-serif-italic {
+    @apply font-serif italic;
+  }
+}
+
+@layer components {
+  .section-container {
+    @apply container mx-auto px-6 md:px-12 lg:px-20;
+  }
+
+  .section-padding {
+    @apply py-20 md:py-32 lg:py-40;
+  }
+
+  .btn-minimal {
+    @apply inline-flex items-center gap-2 px-8 py-4 border border-black text-black text-sm uppercase tracking-widest transition-all duration-500 hover:bg-black hover:text-white;
+  }
+
+  .btn-minimal-light {
+    @apply inline-flex items-center gap-2 px-8 py-4 border border-white text-white text-sm uppercase tracking-widest transition-all duration-500 hover:bg-white hover:text-black;
+  }
+
+  .text-reveal {
+    @apply translate-y-[100%] transition-transform duration-[1.2s];
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .text-reveal-active {
+    @apply translate-y-0;
+  }
+
+  .image-zoom-container {
+    @apply overflow-hidden;
+  }
+
+  .image-zoom {
+    @apply transition-transform duration-[2s] scale-110;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .image-zoom:hover {
+    @apply scale-100;
+  }
+}
+
+/* Custom easing */
+.cubic-bezier {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer utilities {
+  .text-stroke {
+    -webkit-text-stroke: 1px #000;
+    color: transparent;
+  }
+
+  .marquee-container {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    background: #fff;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex !important;
+  width: max-content;
+  animation: marquee 160s linear infinite;
+}
