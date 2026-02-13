@@ -73,7 +73,7 @@ export default function Login() {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-transparent outline-none text-sm font-medium uppercase tracking-widest"
+                  className="w-full bg-transparent outline-none text-sm font-medium tracking-widest"
                 />
               </div>
               <div className="border-b border-black/10 py-2">
@@ -83,7 +83,7 @@ export default function Login() {
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full bg-transparent outline-none text-sm font-medium uppercase tracking-widest"
+                  className="w-full bg-transparent outline-none text-sm font-medium tracking-widest"
                 />
               </div>
             </div>

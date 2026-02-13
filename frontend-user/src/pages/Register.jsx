@@ -73,7 +73,7 @@ export default function Register() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-transparent outline-none text-sm font-medium uppercase tracking-widest"
+                  className="w-full bg-transparent outline-none text-sm font-medium tracking-widest"
                   placeholder="John Doe"
                 />
               </div>
@@ -84,7 +84,7 @@ export default function Register() {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-transparent outline-none text-sm font-medium uppercase tracking-widest"
+                  className="w-full bg-transparent outline-none text-sm font-medium tracking-widest"
                   placeholder="email@example.com"
                 />
               </div>
@@ -95,7 +95,7 @@ export default function Register() {
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full bg-transparent outline-none text-sm font-medium uppercase tracking-widest"
+                  className="w-full bg-transparent outline-none text-sm font-medium tracking-widest"
                 />
               </div>
               <div className="border-b border-black/10 py-2">
@@ -105,7 +105,7 @@ export default function Register() {
                   required
                   value={formData.password_confirmation}
                   onChange={(e) => setFormData({ ...formData, password_confirmation: e.target.value })}
-                  className="w-full bg-transparent outline-none text-sm font-medium uppercase tracking-widest"
+                  className="w-full bg-transparent outline-none text-sm font-medium tracking-widest"
                 />
               </div>
             </div>
