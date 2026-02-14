@@ -5,6 +5,8 @@ const api = {
   register: (data) => axiosClient.post('/auth/register', data),
   login: (data) => axiosClient.post('/auth/login', data),
   logout: () => axiosClient.post('/auth/logout'),
+  forgotPassword: (data) => axiosClient.post('/password/forgot', data),
+  resetPassword: (data) => axiosClient.post('/password/reset', data),
   getProfile: () => axiosClient.get('/auth/user'),
 
   // Properties

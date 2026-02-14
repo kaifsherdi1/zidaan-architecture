@@ -30,9 +30,32 @@ export default function Login() {
     } catch (err) {
       const response = err.response;
       if (response && response.status === 422) {
-        setErrors(response.data.errors);
+        const errors = response.data.errors;
+
+        // Handle specific error messages with alerts
+        if (errors.email) {
+          const emailError = errors.email[0];
+          if (emailError === 'Please register first') {
+            alert(emailError);
+            navigate('/register');
+          } else if (emailError === 'Incorrect password, try again') {
+            alert(emailError);
+          } else if (emailError === 'Please enter email') {
+            alert(emailError);
+          }
+        }
+
+        if (errors.password) {
+          const passwordError = errors.password[0];
+          if (passwordError === 'Please fill the password') {
+            alert(passwordError);
+          }
+        }
+
+        setErrors(errors);
       } else if (response && response.status === 401) {
-        setErrors({ email: [response.data.message] });
+        let message = response.data.message;
+        setErrors({ email: [message] });
       } else {
         setNotification('Login failed. Please try again.');
         console.error(err);
@@ -85,6 +108,11 @@ export default function Login() {
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="w-full bg-transparent outline-none text-sm font-medium tracking-widest"
                 />
+              </div>
+              <div className="flex justify-end">
+                <Link to="/forgot-password" className="text-[10px] uppercase tracking-widest text-secondary font-medium hover:text-black transition-colors">
+                  Forgot Password?
+                </Link>
               </div>
             </div>
 
