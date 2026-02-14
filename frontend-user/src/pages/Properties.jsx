@@ -163,7 +163,7 @@ export default function Properties() {
           {loading ? (
             <div className="h-96 flex flex-col items-center justify-center gap-6">
               <div className="w-12 h-px bg-black/10 animate-pulse"></div>
-              <span className="text-[10px] uppercase tracking-[0.5em] text-secondary animate-pulse">Refining Grid...</span>
+              <span className="text-[10px] uppercase tracking-[0.5em] text-secondary animate-pulse">Loading Properties...</span>
             </div>
           ) : properties.length === 0 ? (
             <div className="h-96 flex flex-col items-center justify-center text-center">
@@ -222,8 +222,8 @@ export default function Properties() {
       </section>
 
       {/* Portfolio CTA */}
-      <section className="py-40 bg-background-off mt-20">
-        <div className="section-container text-center">
+      <section className="py-16 bg-background-off -mt-20">
+        <div className="section-container text-center -mt-12">
           <Heading level={2} className="mb-10 capitalize">Interested in <span className="font-serif-italic normal-case text-accent">collaborating?</span></Heading>
           <Text className="text-secondary max-w-xl mx-auto mb-12">
             We are currently accepting inquiries for late 2024 and early 2025 residential and commercial projects.
