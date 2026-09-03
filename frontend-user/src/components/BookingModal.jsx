@@ -70,7 +70,10 @@ export default function BookingModal({ isOpen, onClose, property }) {
           <div>
             <h4 className="font-medium text-slate-900 line-clamp-1">{property.title}</h4>
             <p className="text-primary font-bold text-sm">
-              ${Number(property.price).toLocaleString()} <span className="text-slate-500 font-normal">/ {property.type === 'rent' ? 'month' : 'total'}</span>
+              {property.price_label || `₹${Number(property.price).toLocaleString('en-IN')}`}
+              {property.type === 'rent' && !property.price_label && (
+                <span className="text-slate-500 font-normal"> / month</span>
+              )}
             </p>
           </div>
         </div>

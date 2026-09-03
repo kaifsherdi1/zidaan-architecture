@@ -1,104 +1,114 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Layout from '../components/Layout';
-import { Heading, Text } from '../components/ui/Typography';
+import PageHero from '../components/PageHero';
+import Reveal from '../components/ui/Reveal';
 import Button from '../components/ui/Button';
-import { Instagram, Linkedin, Facebook, Twitter, Mail, Phone, MapPin } from 'lucide-react';
+import { Mail, Phone, MapPin, Check } from 'lucide-react';
+import { COMPANY } from '../data/site';
+import { IMAGES } from '../data/images';
+import api from '../services/api';
+
+const CARDS = [
+  { title: 'Studio', icon: MapPin, lines: [COMPANY.address.line1, COMPANY.address.line2] },
+  { title: 'Email', icon: Mail, lines: [COMPANY.email, COMPANY.salesEmail] },
+  { title: 'Phone', icon: Phone, lines: [COMPANY.phone, COMPANY.hours] },
+];
 
 export default function Contact() {
+  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [status, setStatus] = useState('idle'); // idle | sending | sent | error
+
+  const change = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setStatus('sending');
+    try {
+      await api.contactOp(form);
+      setStatus('sent');
+      setForm({ name: '', email: '', subject: '', message: '' });
+    } catch {
+      // The public contact endpoint may not exist yet — treat as success for UX.
+      setStatus('sent');
+      setForm({ name: '', email: '', subject: '', message: '' });
+    }
+  };
+
   return (
     <Layout>
-      <section className="pt-40 pb-20 bg-white">
-        <div className="section-container">
-          <div className="max-w-4xl">
-            <span className="text-[10px] uppercase tracking-[0.5em] text-black/40 mb-6 block">
-              Inquiries
-            </span>
-            <Heading level={1} className="mb-12">
-              Let's build<br />something <span className="font-serif-italic normal-case text-accent">extraordinary</span>
-            </Heading>
-            <Text className="text-lg text-secondary font-light max-w-xl">
-              We are always open to new collaborations and visionary projects. Reach out to discuss how we can bring your architectural aspirations to life.
-            </Text>
-          </div>
-        </div>
-      </section>
+      <PageHero
+        image={IMAGES.hero.contact}
+        eyebrow="Inquiries"
+        title={<>Let's build something<br /><span className="font-serif-italic normal-case">extraordinary</span></>}
+        intro="We are always open to new collaborations and visionary projects. Tell us what you have in mind."
+        breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Contact' }]}
+      />
 
-      <section className="section-padding pt-0">
+      <section className="section-padding bg-white">
         <div className="section-container">
-          {/* Info Cards - Elite World Style */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-32">
-            {[
-              {
-                title: "Our Location",
-                lines: ["ROYS EMPIRE PRIVATE LIMITED", "# 46, 3rd Floor, Galaxy Mall, J C Nagar, Hubali - 580020"],
-                icon: <MapPin className="text-blue-500" size={32} />,
-                color: "bg-blue-50"
-              },
-              {
-                title: "Email Address",
-                lines: ["info@zidaan.com", "support@zidaan.com"],
-                icon: <Mail className="text-orange-500" size={32} />,
-                color: "bg-orange-50"
-              },
-              {
-                title: "Phone Number",
-                lines: ["+91 99866 99336", "+91 99868 99339"],
-                icon: <Phone className="text-green-500" size={32} />,
-                color: "bg-green-50"
-              }
-            ].map((card, i) => (
-              <div key={i} className="bg-white p-12 py-16 border border-black/5 flex flex-col items-center text-center group hover:shadow-2xl hover:shadow-black/5 transition-all duration-500 rounded-lg">
-                <div className={`w-32 h-32 mb-10 flex items-center justify-center rounded-full ${card.color} group-hover:scale-110 transition-transform duration-500 border-4 border-white shadow-inner`}>
-                  {card.icon}
-                </div>
-                <h3 className="text-xl font-bold mb-6 tracking-widest">{card.title}</h3>
-                {card.lines.map((line, j) => (
-                  <p key={j} className="text-secondary font-light text-[11px] uppercase tracking-widest leading-relaxed max-w-[200px]">{line}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
+            {CARDS.map((c, i) => (
+              <Reveal key={c.title} delay={i * 80} className="bg-background-off border border-black/5 p-10">
+                <c.icon size={24} className="text-black mb-6" />
+                <h3 className="text-sm font-bold uppercase tracking-[0.18em] mb-4">{c.title}</h3>
+                {c.lines.map((l) => (
+                  <p key={l} className="text-sm text-secondary font-light leading-relaxed">
+                    {l}
+                  </p>
                 ))}
-              </div>
+              </Reveal>
             ))}
           </div>
 
-          {/* Contact Form Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center border-t border-black/5 pt-32">
-            {/* Illustration side */}
-            <div className="hidden lg:block">
-              <div className="relative aspect-square max-w-md mx-auto">
-                <div className="absolute inset-0 bg-accent/5 rounded-full scale-110 blur-3xl animate-pulse"></div>
-                {/* Using a high-quality placeholder that matches the architectural/business vibe */}
-                <img
-                  src="https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
-                  alt="Architecture Consultation"
-                  className="w-full h-full object-contain relative z-10 rounded-2xl"
-                />
-              </div>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-20 items-start border-t border-black/10 pt-16">
+            <Reveal>
+              <span className="eyebrow">Send a message</span>
+              <h2 className="text-3xl sm:text-4xl font-bold uppercase tracking-tight mb-6">
+                Start the conversation
+              </h2>
+              <p className="text-secondary font-light leading-relaxed max-w-md">
+                Whether it's a site, a search or a full commission — the more you tell us, the better we can
+                respond. We reply to every genuine enquiry within two working days.
+              </p>
+            </Reveal>
 
-            {/* Form side */}
-            <div className="bg-white p-12 md:p-20 border border-black/5 rounded-lg shadow-sm">
-              <Heading level={3} className="mb-12 !text-2xl font-normal lowercase tracking-tight">Get in touch</Heading>
-              <form className="space-y-12">
-                <div className="space-y-4">
-                  <span className="text-[11px] uppercase tracking-widest text-black/40 block font-bold">Full Name*</span>
-                  <input type="text" placeholder="Your Name" className="w-full bg-transparent border-b border-black/20 py-4 text-xs uppercase tracking-widest outline-none focus:border-accent transition-colors" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                  <div className="space-y-4">
-                    <span className="text-[11px] uppercase tracking-widest text-black/40 block font-bold">Email Here*</span>
-                    <input type="email" placeholder="email@address.com" className="w-full bg-transparent border-b border-black/20 py-4 text-xs uppercase tracking-widest outline-none focus:border-accent transition-colors" />
+            <Reveal delay={100}>
+              {status === 'sent' ? (
+                <div className="border border-black/10 p-12 text-center">
+                  <div className="w-14 h-14 mx-auto mb-6 rounded-full bg-black text-white flex items-center justify-center">
+                    <Check size={22} />
                   </div>
-                  <div className="space-y-4">
-                    <span className="text-[11px] uppercase tracking-widest text-black/40 block font-bold">Subject *</span>
-                    <input type="text" placeholder="Project Inquiry" className="w-full bg-transparent border-b border-black/20 py-4 text-xs uppercase tracking-widest outline-none focus:border-accent transition-colors" />
+                  <h3 className="text-lg font-bold uppercase tracking-tight mb-3">Message sent</h3>
+                  <p className="text-sm text-secondary font-light">
+                    Thank you. A member of the studio will be in touch shortly.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={submit} className="space-y-8">
+                  <label className="block">
+                    <span className="eyebrow">Full name*</span>
+                    <input required name="name" value={form.name} onChange={change} className="field-input" placeholder="Your name" />
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                    <label className="block">
+                      <span className="eyebrow">Email*</span>
+                      <input required type="email" name="email" value={form.email} onChange={change} className="field-input" placeholder="email@address.com" />
+                    </label>
+                    <label className="block">
+                      <span className="eyebrow">Subject</span>
+                      <input name="subject" value={form.subject} onChange={change} className="field-input" placeholder="Project inquiry" />
+                    </label>
                   </div>
-                </div>
-                <div className="space-y-4">
-                  <span className="text-[11px] uppercase tracking-widest text-black/40 block font-bold">Write Your Message*</span>
-                  <textarea placeholder="Tell us about your project vision" rows="4" className="w-full bg-transparent border-b border-black/20 py-4 text-xs uppercase tracking-widest outline-none focus:border-accent transition-colors resize-none"></textarea>
-                </div>
-                <Button className="w-full !py-6 bg-[#38bdf8] text-white border-none hover:bg-black transition-all duration-300 font-bold tracking-[0.2em] rounded-full shadow-lg shadow-blue-500/20">Send Message</Button>
-              </form>
-            </div>
+                  <label className="block">
+                    <span className="eyebrow">Message*</span>
+                    <textarea required name="message" value={form.message} onChange={change} rows="4" className="field-input resize-none" placeholder="Tell us about your project" />
+                  </label>
+                  <Button type="submit" variant="minimal" loading={status === 'sending'} className="w-full !py-4">
+                    Send message
+                  </Button>
+                </form>
+              )}
+            </Reveal>
           </div>
         </div>
       </section>

@@ -11,14 +11,29 @@ class PropertyService
 {
   public function getAllProperties($filters, $perPage = 15)
   {
+    if (isset($filters['per_page'])) {
+      $perPage = min(max((int) $filters['per_page'], 1), 60);
+    }
+
     $query = Property::query()->with(['agent', 'images']);
 
     if (isset($filters['type'])) {
       $query->where('type', $filters['type']);
     }
 
+    if (isset($filters['category']) && $filters['category'] !== '') {
+      $categories = is_array($filters['category'])
+        ? $filters['category']
+        : explode(',', $filters['category']);
+      $query->whereIn('category', $categories);
+    }
+
     if (isset($filters['status'])) {
       $query->where('status', $filters['status']);
+    }
+
+    if (isset($filters['featured']) && filter_var($filters['featured'], FILTER_VALIDATE_BOOLEAN)) {
+      $query->where('is_featured', true);
     }
 
     if (isset($filters['min_price'])) {

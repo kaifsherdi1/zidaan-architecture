@@ -17,9 +17,15 @@ const api = {
   // Bookings
   createBooking: (data) => axiosClient.post('/user/bookings', data),
   getUserBookings: () => axiosClient.get('/user/bookings'),
+  cancelBooking: (id) => axiosClient.post(`/user/bookings/${id}/cancel`),
+
+  // Saved properties
+  getSavedProperties: () => axiosClient.get('/user/saved-properties'),
+  toggleSavedProperty: (id) => axiosClient.post(`/user/saved-properties/${id}`),
 
   // General
-  getAgents: () => axiosClient.get('/agents'),
+  getAgents: (params = {}) => axiosClient.get('/agents', { params }),
+  getAgent: (id) => axiosClient.get(`/agents/${id}`),
   contactOp: (data) => axiosClient.post('/contact', data),
 };
 

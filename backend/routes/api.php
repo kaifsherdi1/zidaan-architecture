@@ -29,7 +29,7 @@ Route::prefix('password')->group(function () {
 Route::prefix('properties')->group(function () {
   Route::get('/', [PropertyController::class , 'index']);
   Route::get('/featured', [PropertyController::class , 'featured']);
-  Route::get('/{id}', [PropertyController::class , 'show']);
+  Route::get('/{property}', [PropertyController::class , 'show']);
 });
 
 // Protected routes - Require authentication

@@ -1,66 +1,162 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin } from 'lucide-react';
+import { Facebook, Twitter, Instagram, Linkedin, ArrowRight, Check } from 'lucide-react';
+import { COMPANY, FOOTER_NAV, SOCIALS, LOGO } from '../data/site';
+
+const ICONS = { Facebook, Twitter, Instagram, Linkedin };
 
 export default function Footer() {
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!email) return;
+    setSent(true);
+    setEmail('');
+    setTimeout(() => setSent(false), 4000);
+  };
+
   return (
-    <footer className="bg-white border-t border-black/5 pt-32 pb-16">
-      <div className="section-container">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-20 mb-32">
-          {/* Brand Info */}
-          <div className="lg:col-span-2">
-            <Link to="/" className="inline-block mb-10">
-              <span className="text-2xl font-bold uppercase tracking-[0.3em] text-black">
-                Zidaan<br />Architectures
-              </span>
-            </Link>
-            <p className="max-w-md text-secondary leading-relaxed font-light mb-10">
-              A global architecture and design studio focusing on high-end residential and commercial projects. We believe in the poetry of space and the power of minimal design.
+    <footer className="bg-white border-t border-black/10">
+      <div className="section-container py-16 sm:py-24">
+        {/* Newsletter */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 pb-16 border-b border-black/10">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-tight">
+              Join the studio
+              <br />
+              mailing list
+            </h2>
+            <p className="mt-4 text-sm text-secondary font-light max-w-sm">
+              New listings, project releases and the occasional essay. No noise.
             </p>
-            <div className="flex gap-8">
-              <a href="#" className="text-black hover:text-accent transition-colors"><Instagram size={20} /></a>
-              <a href="#" className="text-black hover:text-accent transition-colors"><Linkedin size={20} /></a>
-              <a href="#" className="text-black hover:text-accent transition-colors"><Facebook size={20} /></a>
-              <a href="#" className="text-black hover:text-accent transition-colors"><Twitter size={20} /></a>
+          </div>
+          <form onSubmit={submit} className="flex flex-col justify-end">
+            <label htmlFor="footer-email" className="eyebrow">
+              Email address
+            </label>
+            <div className="flex items-center border-b border-black/20 focus-within:border-black transition-colors">
+              <input
+                id="footer-email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="flex-1 bg-transparent py-3 text-sm outline-none placeholder:text-black/25"
+              />
+              <button
+                type="submit"
+                aria-label="Subscribe"
+                className="p-2 text-black hover:translate-x-1 transition-transform"
+              >
+                {sent ? <Check size={18} /> : <ArrowRight size={18} />}
+              </button>
+            </div>
+            {sent && (
+              <span className="mt-3 text-[11px] uppercase tracking-[0.2em] text-black/50">
+                Thank you — you’re on the list.
+              </span>
+            )}
+          </form>
+        </div>
+
+        {/* Link columns */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 py-16">
+          <div className="lg:col-span-1">
+            <Link to="/" className="inline-block" aria-label={COMPANY.name}>
+              <img src={LOGO.full} alt={COMPANY.name} className="h-20 w-auto" />
+            </Link>
+            <p className="mt-6 text-sm text-secondary font-light leading-relaxed max-w-xs">
+              {COMPANY.description}
+            </p>
+            <div className="flex gap-5 mt-8">
+              {SOCIALS.map((s) => {
+                const Icon = ICONS[s.icon];
+                return (
+                  <a
+                    key={s.name}
+                    href={s.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={s.name}
+                    className="text-black/60 hover:text-black transition-colors"
+                  >
+                    <Icon size={18} />
+                  </a>
+                );
+              })}
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h3 className="text-xs uppercase tracking-[0.2em] font-bold text-black mb-10">Studio</h3>
-            <ul className="space-y-4">
-              <li><Link to="/properties" className="text-sm uppercase tracking-widest text-secondary hover:text-black transition-colors">Portfolio</Link></li>
-              <li><Link to="/about" className="text-sm uppercase tracking-widest text-secondary hover:text-black transition-colors">Philosophy</Link></li>
-              <li><Link to="/agents" className="text-sm uppercase tracking-widest text-secondary hover:text-black transition-colors">Team</Link></li>
-              <li><Link to="/contact" className="text-sm uppercase tracking-widest text-secondary hover:text-black transition-colors">Contact</Link></li>
-            </ul>
-          </div>
+          {FOOTER_NAV.map((col) => (
+            <div key={col.title}>
+              <h3 className="text-[11px] uppercase tracking-[0.2em] font-bold text-black mb-6">
+                {col.title}
+              </h3>
+              <ul className="space-y-3.5">
+                {col.links.map((l) => (
+                  <li key={l.path}>
+                    <Link
+                      to={l.path}
+                      className="text-[13px] uppercase tracking-[0.14em] text-secondary hover:text-black transition-colors"
+                    >
+                      {l.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
 
-          {/* Contact Info */}
+        {/* Contact strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 py-10 border-t border-black/10">
           <div>
-            <h3 className="text-xs uppercase tracking-[0.2em] font-bold text-black mb-10">Contact</h3>
-            <ul className="space-y-6">
-              <li className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-widest text-black/40">Office</span>
-                <span className="text-sm text-secondary font-light">123 Architectural Way, Suite 100<br />Design District, CA</span>
-              </li>
-              <li className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-widest text-black/40">Email</span>
-                <span className="text-sm text-secondary font-light hover:text-black cursor-pointer transition-colors">hello@zidaan.com</span>
-              </li>
-              <li className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-widest text-black/40">Inquiries</span>
-                <span className="text-sm text-secondary font-light">+1 (234) 567 890</span>
-              </li>
-            </ul>
+            <span className="eyebrow">Studio</span>
+            <p className="text-sm text-secondary font-light">
+              {COMPANY.address.line1}
+              <br />
+              {COMPANY.address.line2}
+            </p>
+          </div>
+          <div>
+            <span className="eyebrow">Enquiries</span>
+            <a
+              href={`mailto:${COMPANY.email}`}
+              className="text-sm text-secondary font-light hover:text-black transition-colors"
+            >
+              {COMPANY.email}
+            </a>
+            <br />
+            <a
+              href={COMPANY.phoneHref}
+              className="text-sm text-secondary font-light hover:text-black transition-colors"
+            >
+              {COMPANY.phone}
+            </a>
+          </div>
+          <div>
+            <span className="eyebrow">Hours</span>
+            <p className="text-sm text-secondary font-light">{COMPANY.hours}</p>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-black/5 text-[10px] uppercase tracking-[0.2em] text-secondary">
-          <p>&copy; {new Date().getFullYear()} Zidaan Architectures. All rights reserved.</p>
-          <div className="flex gap-8 mt-4 md:mt-0">
-            <a href="#" className="hover:text-black transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-black transition-colors">Terms of Use</a>
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-10 border-t border-black/10 text-[10px] uppercase tracking-[0.2em] text-secondary">
+          <p>
+            &copy; {new Date().getFullYear()} {COMPANY.name}. All rights reserved.
+          </p>
+          <div className="flex gap-6">
+            <Link to="/privacy" className="hover:text-black transition-colors">
+              Privacy
+            </Link>
+            <Link to="/terms" className="hover:text-black transition-colors">
+              Terms
+            </Link>
+            <Link to="/faq" className="hover:text-black transition-colors">
+              FAQ
+            </Link>
           </div>
         </div>
       </div>

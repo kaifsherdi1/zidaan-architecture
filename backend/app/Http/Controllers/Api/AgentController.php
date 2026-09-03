@@ -11,9 +11,11 @@ class AgentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::where('role', 'agent');
+        $query = User::query()
+            ->with('role')
+            ->whereHas('role', fn ($q) => $q->where('slug', 'agent'));
 
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -21,11 +23,18 @@ class AgentController extends Controller
             });
         }
 
-        // Eager load properties count if relationship exists
-        // $query->withCount('properties'); 
-
-        $agents = $query->paginate(12);
+        $agents = $query->orderBy('name')->paginate(12);
 
         return UserResource::collection($agents);
+    }
+
+    public function show($id)
+    {
+        $agent = User::query()
+            ->with(['role', 'properties.images', 'properties.location'])
+            ->whereHas('role', fn ($q) => $q->where('slug', 'agent'))
+            ->findOrFail($id);
+
+        return new UserResource($agent);
     }
 }

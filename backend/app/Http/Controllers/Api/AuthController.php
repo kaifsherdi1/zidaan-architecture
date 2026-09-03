@@ -28,12 +28,12 @@ class AuthController extends Controller
             ], 500);
         }
 
-        // Create the user
+        // Create the user (registered with an email, a phone number, or both)
         $user = User::create([
             'name' => $request->name,
-            'email' => $request->email,
+            'email' => $request->email ?: null,
+            'phone' => $request->phone ?: null,
             'password' => Hash::make($request->password),
-            'phone' => $request->phone,
             'role_id' => $userRole->id,
             'is_active' => true,
         ]);
@@ -79,20 +79,31 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request)
     {
-        // Find user by email
-        $user = User::where('email', $request->email)->first();
+        // The identifier may be an email address or a phone number.
+        $login = $request->input('login');
+
+        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
+            $user = User::where('email', $login)->first();
+        } else {
+            // Match on the trailing digits so "+91 98765 43210" and "9876543210" resolve alike.
+            $digits = preg_replace('/\D/', '', (string) $login);
+            $tail = substr($digits, -10);
+            $user = strlen($tail) >= 6
+                ? User::whereRaw("REPLACE(REPLACE(REPLACE(phone,' ',''),'-',''),'+','') LIKE ?", ['%' . $tail])->first()
+                : null;
+        }
 
         // Check if user exists
         if (!$user) {
             throw ValidationException::withMessages([
-                'email' => ['Please register first'],
+                'login' => ['We could not find an account for those details. Please register first.'],
             ]);
         }
 
         // Check password
         if (!Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Incorrect password, try again'],
+                'login' => ['Incorrect password, try again'],
             ]);
         }
 

@@ -26,7 +26,7 @@ export default function PropertyCard({ property }) {
             </button>
           </CardItem>
           <CardItem translateZ="60" className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-            <p className="text-white font-bold text-xl">${property.formatted_price}</p>
+            <p className="text-white font-bold text-xl">{property.price_label || property.formatted_price}</p>
           </CardItem>
         </CardItem>
 

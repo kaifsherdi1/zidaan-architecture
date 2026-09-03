@@ -1,182 +1,360 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, X, MapPin, Check } from 'lucide-react';
 import Layout from '../components/Layout';
 import Button from '../components/ui/Button';
-import { Heading, Text } from '../components/ui/Typography';
-import { MapPin, ArrowRight, ChevronLeft, ChevronRight, X, Calendar, User, Phone } from 'lucide-react';
+import Reveal from '../components/ui/Reveal';
+import PropertyTile from '../components/PropertyTile';
 import api from '../services/api';
+import { useStateContext } from '../contexts/ContextProvider';
+import { allPropertyImages, priceLabel, propertyLocation } from '../utils/property';
 
 export default function PropertyDetails() {
   const { id } = useParams();
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [showLightbox, setShowLightbox] = useState(false);
+  const { token } = useStateContext();
   const [property, setProperty] = useState(null);
+  const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [active, setActive] = useState(0);
+  const [lightbox, setLightbox] = useState(false);
+  const [booking, setBooking] = useState({ date: '', name: '', message: '' });
+  const [bookingState, setBookingState] = useState('idle');
 
   useEffect(() => {
-    const fetchProperty = async () => {
-      try {
-        const { data } = await api.getProperty(id);
+    setLoading(true);
+    window.scrollTo(0, 0);
+    api
+      .getProperty(id)
+      .then(({ data }) => {
         setProperty(data.data);
-      } catch (error) {
-        console.error("Failed to fetch property details", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchProperty();
+        setActive(0);
+        return api.getProperties({ status: 'available', per_page: 7 });
+      })
+      .then(({ data }) => setRelated((data.data || []).filter((p) => String(p.id) !== String(id)).slice(0, 3)))
+      .catch((err) => console.error('Failed to fetch property', err))
+      .finally(() => setLoading(false));
   }, [id]);
 
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen flex flex-col items-center justify-center gap-6">
-          <div className="w-16 h-px bg-black/10 animate-pulse"></div>
-          <span className="text-[10px] uppercase tracking-[0.5em] text-secondary animate-pulse">Building Context...</span>
+        <div className="min-h-screen flex flex-col items-center justify-center gap-5">
+          <div className="w-16 h-px bg-black/10 animate-pulse" />
+          <span className="text-[10px] uppercase tracking-[0.4em] text-secondary animate-pulse">
+            Building context…
+          </span>
         </div>
       </Layout>
-    )
+    );
   }
 
   if (!property) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center flex-col gap-10">
-          <Heading level={2}>Project Not Found</Heading>
-          <Link to="/properties"><Button variant="minimal">Return to Gallery</Button></Link>
+        <div className="min-h-screen flex items-center justify-center flex-col gap-8">
+          <h1 className="text-3xl font-bold uppercase tracking-tight">Project not found</h1>
+          <Link to="/properties">
+            <Button variant="minimal">Return to gallery</Button>
+          </Link>
         </div>
       </Layout>
-    )
+    );
   }
 
-  const images = property.images && property.images.length > 0
-    ? property.images.map(img => img.url)
-    : ['https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80'];
+  const images = allPropertyImages(property);
+  const move = (dir) => setActive((prev) => (prev + dir + images.length) % images.length);
 
-  const nextImage = (e) => {
-    e.stopPropagation();
-    setActiveImageIndex((prev) => (prev + 1) % images.length);
-  };
+  const isShop = property.category === 'shop';
+  const specs = [
+    { label: property.type === 'rent' ? 'Rent' : 'Price', value: priceLabel(property) },
+    { label: 'Type', value: property.category_label || (property.type === 'rent' ? 'For rent' : 'For sale') },
+    { label: 'Location', value: propertyLocation(property) },
+    { label: isShop ? 'Carpet area' : 'Built-up area', value: property.area ? `${Number(property.area).toLocaleString('en-IN')} sq ft` : '—' },
+    ...(isShop
+      ? []
+      : [
+          { label: 'Bedrooms', value: property.bedrooms ?? '—' },
+          { label: 'Bathrooms', value: property.bathrooms ?? '—' },
+        ]),
+    { label: 'Covered parking', value: property.garages ? `${property.garages} cars` : '—' },
+    {
+      label: 'Status',
+      value:
+        property.status === 'sold'
+          ? 'Sold'
+          : property.status === 'rented'
+          ? 'Let'
+          : property.type === 'rent'
+          ? 'Available to let'
+          : 'Available',
+    },
+  ];
 
-  const prevImage = (e) => {
-    e.stopPropagation();
-    setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  const submitBooking = async (e) => {
+    e.preventDefault();
+    setBookingState('sending');
+    try {
+      await api.createBooking({
+        property_id: property.id,
+        start_date: booking.date,
+        notes: `${booking.name ? booking.name + ' — ' : ''}${booking.message}`,
+      });
+      setBookingState('sent');
+    } catch {
+      setBookingState(token ? 'error' : 'auth');
+    }
   };
 
   return (
     <Layout>
-      {/* Hero Header */}
-      <section className="relative h-[85vh] w-full overflow-hidden">
-        <img
-          src={images[activeImageIndex]}
-          alt={property.title}
-          className="w-full h-full object-cover"
+      {/* Hero */}
+      <section className="relative h-[78vh] sm:h-[85vh] w-full overflow-hidden">
+        <img src={images[active]} alt={property.title} className="w-full h-full object-cover" />
+        <button
+          className="absolute inset-0 w-full h-full"
+          onClick={() => setLightbox(true)}
+          aria-label="Open gallery"
         />
-        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
 
-        {/* Navigation Overlays */}
-        <div className="absolute bottom-10 left-10 md:left-20 z-10">
-          <Link to="/properties" className="flex items-center gap-4 text-[10px] uppercase tracking-[0.4em] text-white hover:text-accent transition-all mb-10 group">
-            <ChevronLeft size={16} className="group-hover:-translate-x-2 transition-transform" /> Back to Gallery
-          </Link>
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] uppercase tracking-[0.5em] text-white/60">{property.category || 'Architecture'}</span>
-            <Heading level={1} className="text-white !text-4xl md:!text-6xl lg:!text-8xl">{property.title}</Heading>
+        <div className="absolute bottom-8 sm:bottom-12 left-0 right-0 section-container z-10 flex items-end justify-between gap-6">
+          <div>
+            <Link
+              to="/properties"
+              className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-white/80 hover:text-white transition-colors mb-6"
+            >
+              <ChevronLeft size={14} /> Gallery
+            </Link>
+            <span className="block text-[10px] uppercase tracking-[0.3em] text-white/60 mb-2">
+              {[
+                property.category_label,
+                property.type === 'rent' ? 'For rent' : 'For sale',
+                property.location?.city,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+            <h1 className="text-white font-bold uppercase tracking-tighter leading-[0.95] text-3xl sm:text-5xl lg:text-7xl">
+              {property.title}
+            </h1>
           </div>
-        </div>
-
-        <div className="absolute bottom-10 right-10 md:right-20 flex gap-4 z-10">
-          <button onClick={prevImage} className="w-12 h-12 border border-white/20 text-white flex items-center justify-center hover:bg-white hover:text-black transition-all">
-            <ChevronLeft size={20} />
-          </button>
-          <button onClick={nextImage} className="w-12 h-12 border border-white/20 text-white flex items-center justify-center hover:bg-white hover:text-black transition-all">
-            <ChevronRight size={20} />
-          </button>
+          {images.length > 1 && (
+            <div className="hidden sm:flex gap-3 shrink-0">
+              <button
+                onClick={() => move(-1)}
+                className="w-11 h-11 border border-white/30 text-white flex items-center justify-center hover:bg-white hover:text-black transition-colors"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={() => move(1)}
+                className="w-11 h-11 border border-white/30 text-white flex items-center justify-center hover:bg-white hover:text-black transition-colors"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* Project Narrative */}
+      {/* Narrative + specs */}
       <section className="section-padding bg-white">
-        <div className="section-container">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
-            <div className="lg:col-span-8">
-              <span className="text-[10px] uppercase tracking-[0.5em] text-black/40 mb-10 block">Executive Summary</span>
-              <Text className="text-2xl md:text-3xl font-light italic text-black mb-12 leading-relaxed">
-                "{property.description.split('.')[0]}."
-              </Text>
-              <div className="columns-1 md:columns-2 gap-12 space-y-8 text-secondary font-light">
-                <p>{property.description}</p>
-              </div>
+        <div className="section-container grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
+          <Reveal className="lg:col-span-8">
+            <span className="eyebrow">Overview</span>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-light italic text-black leading-relaxed mb-10 break-words">
+              "{(property.description || '').split('.')[0] || property.title}."
+            </p>
+            <div className="space-y-5 text-secondary font-light leading-relaxed">
+              {(property.description || 'Full details available on request.')
+                .split('\n')
+                .filter(Boolean)
+                .map((para, i) => (
+                  <p key={i}>{para}</p>
+                ))}
             </div>
 
-            <div className="lg:col-span-4 mt-20 lg:mt-0">
-              <div className="sticky top-40 bg-background-off p-10 border border-black/5">
-                <Heading level={4} className="mb-10 !text-xs !tracking-[0.3em]">Technical Specifications</Heading>
-                <div className="space-y-6">
-                  {[
-                    { label: "Location", value: `${property.location?.city}, ${property.location?.state}` },
-                    { label: "Area", value: `${property.area} Sq Ft` },
-                    { label: "Beds", value: property.bedrooms },
-                    { label: "Baths", value: property.bathrooms },
-                    { label: "Price", value: `$${Number(property.price).toLocaleString()}` },
-                    { label: "Est. Completion", value: "2024" }
-                  ].map((spec, i) => (
-                    <div key={i} className="flex justify-between items-baseline border-b border-black/5 pb-4">
-                      <span className="text-[10px] uppercase tracking-widest text-black/60">{spec.label}</span>
-                      <span className="text-sm font-bold uppercase tracking-widest text-black">{spec.value}</span>
-                    </div>
+            {Array.isArray(property.features) && property.features.length > 0 && (
+              <div className="mt-12 pt-10 border-t border-black/10">
+                <span className="eyebrow">Features</span>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+                  {property.features.map((f) => (
+                    <li key={f} className="flex items-start gap-3 text-sm text-secondary font-light">
+                      <Check size={15} className="mt-0.5 shrink-0 text-black" />
+                      {f}
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
+            )}
+          </Reveal>
+
+          <Reveal className="lg:col-span-4" delay={100}>
+            <div className="lg:sticky lg:top-28 bg-background-off border border-black/5 p-8">
+              <span className="eyebrow">Specifications</span>
+              <dl className="space-y-4">
+                {specs.map((s) => (
+                  <div key={s.label} className="flex justify-between items-baseline border-b border-black/5 pb-3">
+                    <dt className="text-[10px] uppercase tracking-[0.16em] text-black/45">{s.label}</dt>
+                    <dd className="text-sm font-bold uppercase tracking-[0.06em] text-right">{s.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <a href="#inquire" className="mt-8 block">
+                <Button variant="minimal" className="w-full !py-3">
+                  Request a viewing
+                </Button>
+              </a>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* Image Spotlight Grid */}
-      <section className="pb-32 bg-white">
-        <div className="section-container grid grid-cols-1 md:grid-cols-2 gap-8">
-          {images.slice(1).map((img, i) => (
-            <div key={i} className={`image-zoom-container ${i % 3 === 0 ? 'md:col-span-2 aspect-video' : 'aspect-square'}`}>
-              <img src={img} alt={`Detail ${i}`} className="w-full h-full object-cover image-zoom" />
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Gallery grid */}
+      {images.length > 1 && (
+        <section className="pb-24 bg-white">
+          <div className="section-container grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {images.slice(1).map((img, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setActive(i + 1);
+                  setLightbox(true);
+                }}
+                className={`image-zoom-container ${i % 3 === 0 ? 'sm:col-span-2 aspect-video' : 'aspect-square'} group`}
+              >
+                <img src={img} alt={`${property.title} ${i + 2}`} loading="lazy" className="w-full h-full object-cover image-zoom" />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* Booking / Inquiry Section */}
-      <section className="section-padding bg-background-off border-t border-black/5">
-        <div className="section-container">
-          <div className="max-w-4xl mx-auto text-center mb-20">
-            <Heading level={2} className="mb-6 capitalize">Project <span className="font-serif-italic normal-case text-accent">Inquiry</span></Heading>
-            <Text className="text-secondary font-light">Interested in this property or a similar architectural solution? Contact our dedicated studio team.</Text>
+      {/* Inquiry */}
+      <section id="inquire" className="section-padding bg-background-off border-t border-black/10">
+        <div className="section-container max-w-2xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="eyebrow mx-auto w-fit">Inquiry</span>
+            <h2 className="text-3xl sm:text-4xl font-bold uppercase tracking-tight mb-4">
+              Arrange a private viewing
+            </h2>
+            <p className="text-secondary font-light">
+              Tell us when suits and our team will confirm by email.
+            </p>
           </div>
 
-          <div className="max-w-2xl mx-auto">
-            <form className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white p-12 shadow-sm border border-black/5">
-              <div className="space-y-4">
-                <span className="text-[10px] uppercase tracking-widest text-black/40 block">Preferred Date</span>
-                <input type="date" className="w-full border-b border-black/10 py-3 text-xs uppercase tracking-widest outline-none focus:border-black bg-transparent" />
+          {bookingState === 'sent' ? (
+            <div className="bg-white border border-black/10 p-12 text-center">
+              <div className="w-14 h-14 mx-auto mb-6 rounded-full bg-black text-white flex items-center justify-center">
+                <Check size={22} />
               </div>
-              <div className="space-y-4">
-                <span className="text-[10px] uppercase tracking-widest text-black/40 block">Full Name</span>
-                <input type="text" placeholder="John Doe" className="w-full border-b border-black/10 py-3 text-xs uppercase tracking-widest outline-none focus:border-black bg-transparent" />
-              </div>
-              <div className="space-y-4 md:col-span-2">
-                <span className="text-[10px] uppercase tracking-widest text-black/40 block">Message</span>
-                <textarea placeholder="Tell us about your requirements" rows="3" className="w-full border-b border-black/10 py-3 text-xs uppercase tracking-widest outline-none focus:border-black bg-transparent resize-none"></textarea>
-              </div>
-              <Button className="md:col-span-2 !py-4 mt-4">Schedule Private Viewing</Button>
+              <h3 className="text-lg font-bold uppercase tracking-tight mb-3">Request sent</h3>
+              <p className="text-sm text-secondary font-light">We'll be in touch shortly to confirm a time.</p>
+            </div>
+          ) : (
+            <form onSubmit={submitBooking} className="bg-white border border-black/10 p-8 sm:p-12 grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <label className="block">
+                <span className="eyebrow">Preferred date</span>
+                <input
+                  type="date"
+                  required
+                  value={booking.date}
+                  onChange={(e) => setBooking((b) => ({ ...b, date: e.target.value }))}
+                  className="field-input"
+                />
+              </label>
+              <label className="block">
+                <span className="eyebrow">Full name</span>
+                <input
+                  value={booking.name}
+                  onChange={(e) => setBooking((b) => ({ ...b, name: e.target.value }))}
+                  className="field-input"
+                  placeholder="Your name"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="eyebrow">Message</span>
+                <textarea
+                  rows="3"
+                  value={booking.message}
+                  onChange={(e) => setBooking((b) => ({ ...b, message: e.target.value }))}
+                  className="field-input resize-none"
+                  placeholder="Anything we should know"
+                />
+              </label>
+              {bookingState === 'auth' && (
+                <p className="sm:col-span-2 text-[12px] text-black/60 leading-relaxed">
+                  Please <Link to="/login" className="underline">log in</Link> or{' '}
+                  <Link to="/register" className="underline">create an account</Link> to complete your request.
+                </p>
+              )}
+              {bookingState === 'error' && (
+                <p className="sm:col-span-2 text-[12px] text-red-600">
+                  Something went wrong. Please try again.
+                </p>
+              )}
+              <Button
+                type="submit"
+                variant="minimal"
+                loading={bookingState === 'sending'}
+                className="sm:col-span-2 !py-4"
+              >
+                Schedule viewing
+              </Button>
             </form>
-          </div>
+          )}
         </div>
       </section>
 
-      {/* Lightbox Trigger (Hidden element to match logic if needed) */}
-      {showLightbox && (
-        <div className="fixed inset-0 z-[100] bg-black p-10 flex items-center justify-center">
-          <button onClick={() => setShowLightbox(false)} className="absolute top-10 right-10 text-white"><X size={32} /></button>
-          <img src={images[activeImageIndex]} className="max-h-full max-w-full object-contain" alt="Lightbox" />
+      {/* Related */}
+      {related.length > 0 && (
+        <section className="section-padding bg-white">
+          <div className="section-container">
+            <div className="flex justify-between items-end mb-12">
+              <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-tight">More works</h2>
+              <Link to="/properties" className="link-underline text-[11px] uppercase tracking-[0.24em] font-bold">
+                View all
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-14">
+              {related.map((p, i) => (
+                <Reveal key={p.id} delay={(i % 3) * 70}>
+                  <PropertyTile property={p} />
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center">
+          <button onClick={() => setLightbox(false)} className="absolute top-6 right-6 text-white z-10" aria-label="Close">
+            <X size={30} />
+          </button>
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={() => move(-1)}
+                className="absolute left-4 sm:left-8 text-white/70 hover:text-white"
+                aria-label="Previous"
+              >
+                <ChevronLeft size={40} />
+              </button>
+              <button
+                onClick={() => move(1)}
+                className="absolute right-4 sm:right-8 text-white/70 hover:text-white"
+                aria-label="Next"
+              >
+                <ChevronRight size={40} />
+              </button>
+            </>
+          )}
+          <img src={images[active]} alt={property.title} className="max-h-[88vh] max-w-[92vw] object-contain" />
+          <span className="absolute bottom-6 text-white/50 text-[11px] uppercase tracking-[0.3em]">
+            {active + 1} / {images.length}
+          </span>
         </div>
       )}
     </Layout>

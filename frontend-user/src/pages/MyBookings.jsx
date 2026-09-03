@@ -1,107 +1,126 @@
-import { useEffect, useState } from "react";
-import axiosClient from "../axios-client";
-import { Link } from "react-router-dom";
-import { Calendar, Clock, MapPin } from "lucide-react";
-import { IconHome, IconBuildingSkyscraper, IconUsers, IconCalendar as IconCalendarNav, IconUser } from '@tabler/icons-react';
-import FloatingDock from "../components/ui/FloatingDock";
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Calendar, MapPin } from 'lucide-react';
+import Layout from '../components/Layout';
+import PageHero from '../components/PageHero';
+import AccountNav from '../components/AccountNav';
+import Reveal from '../components/ui/Reveal';
+import Button from '../components/ui/Button';
+import api from '../services/api';
+import { propertyFallback } from '../data/images';
+
+const STATUS_STYLES = {
+  pending: 'bg-black/5 text-black',
+  approved: 'bg-black text-white',
+  confirmed: 'bg-black text-white',
+  rejected: 'border border-black/20 text-black/50',
+  cancelled: 'border border-black/20 text-black/50',
+};
 
 export default function MyBookings() {
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [token] = useState(localStorage.getItem('ACCESS_TOKEN'));
+  const [bookings, setBookings] = useState(null);
 
-  const navItems = [
-    { title: "Home", icon: <IconHome className="h-full w-full" />, href: "/" },
-    { title: "Properties", icon: <IconBuildingSkyscraper className="h-full w-full" />, href: "/properties" },
-    { title: "Agents", icon: <IconUsers className="h-full w-full" />, href: "/agents" },
-    ...(token ? [
-      { title: "My Bookings", icon: <IconCalendarNav className="h-full w-full" />, href: "/my-bookings" },
-      { title: "Profile", icon: <IconUser className="h-full w-full" />, href: "/profile" },
-    ] : []),
-  ];
+  const load = () => {
+    api
+      .getUserBookings()
+      .then(({ data }) => setBookings(data.data || []))
+      .catch(() => setBookings([]));
+  };
 
-  useEffect(() => {
-    setLoading(true);
-    axiosClient.get('/user/bookings')
-      .then(({ data }) => {
-        setLoading(false);
-        setBookings(data.data);
-      })
-      .catch(() => {
-        setLoading(false);
-      });
-  }, []);
+  useEffect(load, []);
 
-  const cancelBooking = (id) => {
-    if (!window.confirm("Are you sure you want to cancel this booking?")) return;
-
-    axiosClient.post(`/user/bookings/${id}/cancel`)
-      .then(() => {
-        // Refresh list
-        setBookings(bookings.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
-      });
+  const cancel = async (id) => {
+    if (!window.confirm('Cancel this viewing request?')) return;
+    try {
+      await api.cancelBooking(id);
+    } catch {
+      /* optimistic */
+    }
+    setBookings((bs) => bs.map((b) => (b.id === id ? { ...b, status: 'cancelled' } : b)));
   };
 
   return (
-    <div className="pt-24 pb-16 min-h-screen bg-slate-50">
-      <FloatingDock items={navItems} />
-      <div className="container mx-auto px-4">
-        <h1 className="text-3xl font-bold text-slate-900 mb-8">My Bookings</h1>
+    <Layout>
+      <PageHero
+        eyebrow="Your account"
+        title={<>Property<br />viewings</>}
+        intro="Your requested viewings and their status. We confirm times by email."
+        breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Account', to: '/dashboard' }, { label: 'Viewings' }]}
+      />
 
-        {loading && <div className="text-center py-10">Loading...</div>}
+      <section className="section-padding-sm bg-white">
+        <div className="section-container">
+          <AccountNav />
 
-        {!loading && bookings.length === 0 && (
-          <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-slate-200">
-            <p className="text-slate-500 mb-4">You haven't booked any viewings yet.</p>
-            <Link to="/properties" className="btn btn-primary">Browse Properties</Link>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {bookings.map(booking => (
-            <div key={booking.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="relative h-48">
-                <img src={booking.property.image} className="w-full h-full object-cover" />
-                <div className="absolute top-4 right-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider 
-                                ${booking.status === 'pending' ? 'bg-yellow-400 text-yellow-900' :
-                      booking.status === 'approved' ? 'bg-green-500 text-white' :
-                        booking.status === 'rejected' ? 'bg-red-500 text-white' : 'bg-slate-500 text-white'}`}>
-                    {booking.status}
-                  </span>
-                </div>
-              </div>
-              <div className="p-6">
-                <h3 className="text-lg font-bold text-slate-900 mb-1">{booking.property.title}</h3>
-                <div className="flex items-center text-slate-500 text-sm mb-4">
-                  <MapPin className="w-4 h-4 mr-1" />
-                  {booking.property.address}
-                </div>
-
-                <div className="flex items-center justify-between py-4 border-t border-slate-100">
-                  <div className="flex items-center gap-2 text-slate-700">
-                    <Calendar className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">{booking.visit_date}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-700">
-                    <Clock className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">{booking.visit_time}</span>
-                  </div>
-                </div>
-
-                {booking.status === 'pending' && (
-                  <button
-                    onClick={() => cancelBooking(booking.id)}
-                    className="w-full mt-4 btn bg-red-50 text-red-600 hover:bg-red-100 border-transparent"
-                  >
-                    Cancel Booking
-                  </button>
-                )}
-              </div>
+          {bookings === null ? (
+            <div className="h-64 flex items-center justify-center">
+              <span className="text-[11px] uppercase tracking-[0.3em] text-secondary animate-pulse">Loading…</span>
             </div>
-          ))}
+          ) : bookings.length === 0 ? (
+            <div className="border border-black/10 py-20 text-center">
+              <h3 className="text-2xl font-bold uppercase tracking-tight text-black/25 mb-6">
+                No viewings booked
+              </h3>
+              <p className="text-sm text-secondary font-light mb-8 max-w-sm mx-auto">
+                Request a viewing from any property page.
+              </p>
+              <Link to="/properties">
+                <Button variant="minimal">Browse properties</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {bookings.map((b, i) => {
+                const p = b.property || {};
+                const date = b.visit_date || b.start_date || b.date;
+                return (
+                  <Reveal key={b.id} delay={(i % 3) * 60} className="border border-black/10">
+                    <div className="relative aspect-[4/3] bg-background-off">
+                      <img
+                        src={p.image || p.main_image || propertyFallback(p.id || i)}
+                        alt={p.title || 'Property'}
+                        className="w-full h-full object-cover"
+                      />
+                      <span
+                        className={`absolute top-3 right-3 px-3 py-1 text-[9px] uppercase tracking-[0.16em] font-bold ${
+                          STATUS_STYLES[b.status] || STATUS_STYLES.pending
+                        }`}
+                      >
+                        {b.status || 'pending'}
+                      </span>
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-sm font-bold uppercase tracking-[0.14em] mb-2 truncate">
+                        {p.title || 'Property'}
+                      </h3>
+                      {(p.address || p.city) && (
+                        <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em] text-black/45 mb-4">
+                          <MapPin size={12} />
+                          <span className="truncate">{p.address || p.city}</span>
+                        </div>
+                      )}
+                      {date && (
+                        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-black/60 border-t border-black/5 pt-4">
+                          <Calendar size={13} /> {date}
+                          {b.visit_time ? ` · ${b.visit_time}` : ''}
+                        </div>
+                      )}
+                      {['pending', 'approved', 'confirmed'].includes(b.status) && (
+                        <button
+                          onClick={() => cancel(b.id)}
+                          className="mt-5 w-full border border-black/15 py-2.5 text-[10px] uppercase tracking-[0.2em] font-bold hover:bg-black hover:text-white transition-colors"
+                        >
+                          Cancel request
+                        </button>
+                      )}
+                    </div>
+                  </Reveal>
+                );
+              })}
+            </div>
+          )}
         </div>
-      </div>
-    </div>
+      </section>
+    </Layout>
   );
 }

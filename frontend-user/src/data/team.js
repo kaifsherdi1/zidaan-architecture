@@ -1,0 +1,90 @@
+import { IMAGES } from './images';
+
+export const LEADERSHIP = [
+  {
+    id: 'amara-zidaan',
+    name: 'Amara Zidaan',
+    role: 'Founder & Principal Architect',
+    image: IMAGES.team[1],
+    location: 'Los Angeles',
+    bio: 'Amara founded the studio in 2024 after fifteen years shaping cultural and residential landmarks across three continents. Her work is defined by restraint, daylight and a deep respect for site.',
+    expertise: ['Concept Design', 'Cultural Projects', 'Masterplanning'],
+    email: 'amara@zidaan.com',
+  },
+  {
+    id: 'idris-fenn',
+    name: 'Idris Fenn',
+    role: 'Managing Partner',
+    image: IMAGES.team[2],
+    location: 'London',
+    bio: 'Idris leads the studio’s commercial practice and real-estate advisory, guiding clients from acquisition through delivery with a focus on long-term value.',
+    expertise: ['Real Estate Advisory', 'Commercial', 'Delivery'],
+    email: 'idris@zidaan.com',
+  },
+  {
+    id: 'noor-haddad',
+    name: 'Noor Haddad',
+    role: 'Design Director',
+    image: IMAGES.team[3],
+    location: 'Dubai',
+    bio: 'Noor oversees interiors and material research, translating architectural intent into spaces that feel considered down to the last detail.',
+    expertise: ['Interior Architecture', 'Materials', 'Furniture'],
+    email: 'noor@zidaan.com',
+  },
+];
+
+export const TEAM = [
+  ...LEADERSHIP,
+  {
+    id: 'sofia-marchetti',
+    name: 'Sofia Marchetti',
+    role: 'Senior Architect',
+    image: IMAGES.team[5],
+    location: 'Milan',
+    bio: 'Sofia focuses on private residences where structure and landscape are resolved as a single gesture.',
+    expertise: ['Residential', 'Landscape Integration'],
+    email: 'sofia@zidaan.com',
+  },
+  {
+    id: 'daniel-okafor',
+    name: 'Daniel Okafor',
+    role: 'Project Architect',
+    image: IMAGES.team[4],
+    location: 'Lagos',
+    bio: 'Daniel runs delivery on large residential developments, keeping design ambition intact through construction.',
+    expertise: ['Multi-Residential', 'Construction'],
+    email: 'daniel@zidaan.com',
+  },
+  {
+    id: 'yuki-tanaka',
+    name: 'Yuki Tanaka',
+    role: 'Head of Visualisation',
+    image: IMAGES.team[6],
+    location: 'Tokyo',
+    bio: 'Yuki leads the studio’s image-making — the atmospheric renders that let clients feel a space before it exists.',
+    expertise: ['Visualisation', 'Lighting Studies'],
+    email: 'yuki@zidaan.com',
+  },
+  {
+    id: 'elena-petrova',
+    name: 'Elena Petrova',
+    role: 'Client Partner, Real Estate',
+    image: IMAGES.team[7],
+    location: 'New York',
+    bio: 'Elena advises private buyers and institutional clients across the studio’s managed portfolio.',
+    expertise: ['Acquisitions', 'Portfolio Strategy'],
+    email: 'elena@zidaan.com',
+  },
+  {
+    id: 'marcus-hale',
+    name: 'Marcus Hale',
+    role: 'Sustainability Lead',
+    image: IMAGES.team[0],
+    location: 'Copenhagen',
+    bio: 'Marcus embeds low-carbon strategy and passive design into every project from the first sketch.',
+    expertise: ['Sustainability', 'Passive Design', 'Certification'],
+    email: 'marcus@zidaan.com',
+  },
+];
+
+export const teamMemberById = (id) => TEAM.find((m) => m.id === id);
