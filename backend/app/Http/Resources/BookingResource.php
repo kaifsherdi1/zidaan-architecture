@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Carbon;
 
 class BookingResource extends JsonResource
 {
@@ -11,50 +12,46 @@ class BookingResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'booking_date' => $this->booking_date,
-            'booking_time' => $this->booking_time, // Keep original H:i:s format or format here
-            'formatted_date' => \Carbon\Carbon::parse($this->booking_date)->format('M d, Y'),
-            'formatted_time' => \Carbon\Carbon::parse($this->booking_time)->format('h:i A'),
+            'visit_date' => optional($this->visit_date)->toDateString(),
+            'visit_time' => $this->visit_time ? Carbon::parse($this->visit_time)->format('H:i') : null,
+            'formatted_date' => $this->visit_date ? Carbon::parse($this->visit_date)->format('D, d M Y') : null,
+            'formatted_time' => $this->visit_time ? Carbon::parse($this->visit_time)->format('h:i A') : null,
             'status' => $this->status,
-            'message' => $this->message,
-            'notes' => $this->notes,
+            'status_label' => ucfirst($this->status),
+            'message' => $this->user_message,
+            'agent_notes' => $this->when(
+                in_array(optional($request->user())->id, [$this->agent_id]) || optional($request->user()?->role)->slug === 'admin',
+                $this->agent_notes
+            ),
+            'rejection_reason' => $this->rejection_reason,
 
-            // Property snippet
-            'property' => $this->when($this->property, function () {
-            return [
-                    'id' => $this->property->id,
-                    'title' => $this->property->title,
-                    'location' => [
-                        'address' => $this->property->address,
-                        'city' => $this->property->city,
-                    ],
-                    'image' => $this->property->images->first() ? asset('storage/' . $this->property->images->first()->image_path) : null,
-                    'price' => $this->property->price,
-                ];
-        }),
+            'property' => $this->whenLoaded('property', fn () => [
+                'id' => $this->property->id,
+                'title' => $this->property->title,
+                'slug' => $this->property->slug,
+                'city' => $this->property->city,
+                'state' => $this->property->state,
+                'price' => $this->property->price,
+                'image' => optional($this->property->images->first())->image_path
+                    ? '/storage/' . $this->property->images->first()->image_path
+                    : null,
+            ]),
 
-            // User snippet
-            'user' => $this->when($this->user, function () {
-            return [
-                    'id' => $this->user->id,
-                    'name' => $this->user->name,
-                    'email' => $this->user->email,
-                    'phone' => $this->user->phone,
-                    'avatar' => $this->user->avatar ? asset('storage/' . $this->user->avatar) : null,
-                ];
-        }),
+            'user' => $this->whenLoaded('user', fn () => [
+                'id' => $this->user->id,
+                'name' => $this->user->name,
+                'email' => $this->user->email,
+                'phone' => $this->user->phone,
+            ]),
 
-            // Agent snippet
-            'agent' => $this->when($this->agent, function () {
-            return [
-                    'id' => $this->agent->id,
-                    'name' => $this->agent->user->name ?? 'Unknown Agent',
-                    'phone' => $this->agent->user->phone ?? null,
-                ];
-        }),
+            'agent' => $this->whenLoaded('agent', fn () => $this->agent ? [
+                'id' => $this->agent->id,
+                'name' => $this->agent->name,
+                'phone' => $this->agent->phone,
+                'email' => $this->agent->email,
+            ] : null),
 
             'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
         ];
     }
 }

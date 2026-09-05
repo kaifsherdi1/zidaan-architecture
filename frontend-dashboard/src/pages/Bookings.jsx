@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axiosClient from "../axios-client";
 import { useStateContext } from "../contexts/ContextProvider";
-import { FaCalendarAlt, FaCheck, FaTimes, FaClock } from "react-icons/fa";
+import { FaCalendarAlt, FaCheck, FaTimes } from "react-icons/fa";
 import { Table, TableHead, TableBody, TableRow, TableCell } from "../components/ui/Table";
 import Card from "../components/ui/Card";
 
@@ -11,15 +11,17 @@ export default function Bookings() {
   const [filter, setFilter] = useState('all');
   const { setNotification, user } = useStateContext();
 
+  const roleSlug = typeof user?.role === 'object' ? user?.role?.slug : (user?.role || '');
+  const isStaffAdmin = roleSlug === 'admin' || roleSlug === 'manager';
+  const basePath = isStaffAdmin ? '/admin/bookings' : '/agent/bookings';
+
   const fetchBookings = (status = null) => {
     setLoading(true);
-    const userRole = typeof user?.role === 'object' ? user?.role?.slug : (user?.role || '');
-    const endpoint = userRole === 'admin' ? '/bookings' : '/agent/bookings';
     const params = status && status !== 'all' ? { status } : {};
 
-    axiosClient.get(endpoint, { params })
+    axiosClient.get(basePath, { params })
       .then(({ data }) => {
-        setBookings(data.data);
+        setBookings(data.data || []);
         setLoading(false);
       })
       .catch(() => {
@@ -28,13 +30,14 @@ export default function Bookings() {
   };
 
   useEffect(() => {
-    fetchBookings(filter);
-  }, [filter, user]);
+    if (roleSlug) fetchBookings(filter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, roleSlug]);
 
   const handleStatusUpdate = (id, newStatus) => {
-    if (!window.confirm(`Are you sure you want to ${newStatus} this booking?`)) return;
+    if (!window.confirm(`Are you sure you want to mark this viewing as ${newStatus}?`)) return;
 
-    axiosClient.put(`/bookings/${id}/status`, { status: newStatus })
+    axiosClient.put(`${basePath}/${id}/status`, { status: newStatus })
       .then(() => {
         setNotification(`Booking ${newStatus} successfully!`);
         fetchBookings(filter);
@@ -77,7 +80,7 @@ export default function Bookings() {
             <TableRow>
               <TableCell as="th">Property</TableCell>
               <TableCell as="th">Client</TableCell>
-              <TableCell as="th">Dates</TableCell>
+              <TableCell as="th">Viewing</TableCell>
               <TableCell as="th">Status</TableCell>
               <TableCell as="th" className="text-right">Actions</TableCell>
             </TableRow>
@@ -96,8 +99,12 @@ export default function Bookings() {
                 <TableRow key={booking.id}>
                   <TableCell>
                     <div className="flex items-center gap-4">
-                      {booking.property?.main_image ? (
-                        <img src={booking.property.main_image} alt={booking.property.title} className="w-12 h-12 object-cover rounded-lg border border-slate-200" />
+                      {booking.property?.image ? (
+                        <img
+                          src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://127.0.0.1:8000'}${booking.property.image}`}
+                          alt={booking.property.title}
+                          className="w-12 h-12 object-cover rounded-lg border border-slate-200"
+                        />
                       ) : (
                         <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 border border-slate-200">
                           <span className="text-xs">No Img</span>
@@ -105,7 +112,7 @@ export default function Bookings() {
                       )}
                       <div>
                         <p className="font-medium text-slate-900 line-clamp-1 max-w-[200px]">{booking.property?.title || 'Unknown Property'}</p>
-                        <p className="text-xs text-slate-500 capitalize">{booking.property?.type}</p>
+                        <p className="text-xs text-slate-500">{booking.property?.city}</p>
                       </div>
                     </div>
                   </TableCell>
@@ -118,16 +125,14 @@ export default function Bookings() {
                   <TableCell>
                     <div className="text-sm text-slate-900 flex items-center gap-1">
                       <FaCalendarAlt className="text-slate-400 text-xs" />
-                      {new Date(booking.start_date).toLocaleDateString()}
+                      {booking.formatted_date || booking.visit_date}
                     </div>
-                    {booking.end_date && (
-                      <div className="text-xs text-slate-500 ml-4">
-                        to {new Date(booking.end_date).toLocaleDateString()}
-                      </div>
+                    {booking.formatted_time && (
+                      <div className="text-xs text-slate-500 ml-4">{booking.formatted_time}</div>
                     )}
                   </TableCell>
                   <TableCell>
-                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium capitalize 
+                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium capitalize
                       ${booking.status === 'approved' ? 'bg-green-100 text-green-700' :
                         booking.status === 'rejected' ? 'bg-red-100 text-red-700' :
                           booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
@@ -155,7 +160,15 @@ export default function Bookings() {
                           </button>
                         </>
                       )}
-                      {booking.status !== 'pending' && <span className="text-slate-400">-</span>}
+                      {booking.status === 'approved' && (
+                        <button
+                          onClick={() => handleStatusUpdate(booking.id, 'completed')}
+                          className="text-xs font-medium text-primary hover:underline"
+                        >
+                          Mark completed
+                        </button>
+                      )}
+                      {!['pending', 'approved'].includes(booking.status) && <span className="text-slate-400">—</span>}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -167,4 +180,3 @@ export default function Bookings() {
     </div>
   );
 }
-

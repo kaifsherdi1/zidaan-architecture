@@ -5,26 +5,38 @@ import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
 import axiosClient from "../axios-client";
 
+const STAFF_ROLES = ['admin', 'manager', 'agent'];
+
 export default function DefaultLayout() {
   const { user, token, setUser, setToken } = useStateContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  if (!token) {
-    return <Navigate to="/login" />
-  }
+  const [notStaff, setNotStaff] = useState(false);
 
   useEffect(() => {
-    axiosClient.get('/auth/me')
+    if (!token) return;
+    axiosClient.get('/me')
       .then(({ data }) => {
-        setUser(data.user); // key fix: data.user was the structure in AuthController
+        const roleSlug = typeof data.user?.role === 'object' ? data.user?.role?.slug : data.user?.role;
+        if (roleSlug && !STAFF_ROLES.includes(roleSlug)) {
+          // This dashboard is a staff tool — clients belong on the public site.
+          setUser({});
+          setToken(null);
+          setNotStaff(true);
+          return;
+        }
+        setUser(data.user);
       })
       .catch((err) => {
         if (err.response && err.response.status === 401) {
           setUser({});
           setToken(null);
         }
-      })
-  }, []);
+      });
+  }, [token]);
+
+  if (!token) {
+    return <Navigate to="/login" replace state={notStaff ? { notStaff: true } : undefined} />;
+  }
 
   return (
     <div className="flex min-h-screen bg-background font-sans">

@@ -6,19 +6,34 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import { FaFileExcel, FaDownload, FaCheckCircle, FaClock, FaTimesCircle } from "react-icons/fa";
 
+function downloadBlob(url, filename) {
+  return axiosClient.get(url, { responseType: 'blob' }).then(({ data }) => {
+    const objectUrl = window.URL.createObjectURL(data);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(objectUrl);
+  });
+}
+
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const { user } = useStateContext();
 
+  const roleSlug = typeof user?.role === 'object' ? user?.role?.slug : (user?.role || '');
+  const isStaffAdmin = roleSlug === 'admin' || roleSlug === 'manager';
+
   const fetchTransactions = () => {
     setLoading(true);
-    const userRole = typeof user?.role === 'object' ? user?.role?.slug : (user?.role || '');
-    const endpoint = userRole === 'admin' ? '/transactions' : '/agent/transactions';
+    const endpoint = isStaffAdmin ? '/admin/transactions' : '/agent/transactions';
 
     axiosClient.get(endpoint)
       .then(({ data }) => {
-        setTransactions(data.data);
+        setTransactions(data.data || []);
         setLoading(false);
       })
       .catch(() => {
@@ -27,15 +42,16 @@ export default function Transactions() {
   };
 
   useEffect(() => {
-    fetchTransactions();
-  }, [user]);
+    if (roleSlug) fetchTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roleSlug]);
 
   const handleDownloadInvoice = (id) => {
-    window.open(`${import.meta.env.VITE_API_BASE_URL}/transactions/${id}/invoice`, '_blank');
+    downloadBlob(`/admin/transactions/${id}/invoice`, `invoice-${id}.pdf`).catch(() => {});
   };
 
   const handleExport = () => {
-    window.open(`${import.meta.env.VITE_API_BASE_URL}/export/transactions`, '_blank');
+    downloadBlob('/admin/reports/transactions', 'transactions.xlsx').catch(() => {});
   };
 
   return (
@@ -45,9 +61,11 @@ export default function Transactions() {
           <h1 className="text-2xl font-bold text-slate-800">Transactions</h1>
           <p className="text-slate-500">View and manage financial records and invoices.</p>
         </div>
-        <Button variant="secondary" onClick={handleExport} className="flex items-center gap-2">
-          <FaFileExcel className="text-green-600" /> Export Excel
-        </Button>
+        {isStaffAdmin && (
+          <Button variant="secondary" onClick={handleExport} className="flex items-center gap-2">
+            <FaFileExcel className="text-green-600" /> Export Excel
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -56,7 +74,7 @@ export default function Transactions() {
             <TableRow>
               <TableCell as="th">ID</TableCell>
               <TableCell as="th">Property</TableCell>
-              <TableCell as="th">User</TableCell>
+              <TableCell as="th">Client</TableCell>
               <TableCell as="th">Amount</TableCell>
               <TableCell as="th">Date</TableCell>
               <TableCell as="th">Status</TableCell>
@@ -82,34 +100,33 @@ export default function Transactions() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div>
-                      <p className="text-sm text-slate-900">{transaction.user?.name}</p>
-                      <p className="text-xs text-slate-500">{transaction.user?.email}</p>
-                    </div>
+                    <p className="text-sm text-slate-900">{transaction.client_name}</p>
                   </TableCell>
                   <TableCell>
-                    <span className="font-bold text-slate-900">${Number(transaction.amount).toLocaleString()}</span>
+                    <span className="font-bold text-slate-900">₹{Number(transaction.amount).toLocaleString('en-IN')}</span>
                   </TableCell>
                   <TableCell>
-                    {new Date(transaction.created_at).toLocaleDateString()}
+                    {transaction.transaction_date || new Date(transaction.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium capitalize 
-                      ${transaction.status === 'paid' ? 'bg-green-100 text-green-700' :
-                        transaction.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {transaction.status === 'paid' && <FaCheckCircle className="text-xs" />}
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium capitalize
+                      ${transaction.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        transaction.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {transaction.status === 'completed' && <FaCheckCircle className="text-xs" />}
                       {transaction.status === 'pending' && <FaClock className="text-xs" />}
-                      {transaction.status === 'failed' && <FaTimesCircle className="text-xs" />}
+                      {transaction.status === 'cancelled' && <FaTimesCircle className="text-xs" />}
                       {transaction.status}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <button
-                      onClick={() => handleDownloadInvoice(transaction.id)}
-                      className="text-primary hover:text-primary-dark font-medium text-sm inline-flex items-center gap-1 transition-colors"
-                    >
-                      <FaDownload className="text-xs" /> Invoice
-                    </button>
+                    {isStaffAdmin && (
+                      <button
+                        onClick={() => handleDownloadInvoice(transaction.id)}
+                        className="text-primary hover:text-primary-dark font-medium text-sm inline-flex items-center gap-1 transition-colors"
+                      >
+                        <FaDownload className="text-xs" /> Invoice
+                      </button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -120,4 +137,3 @@ export default function Transactions() {
     </div>
   );
 }
-

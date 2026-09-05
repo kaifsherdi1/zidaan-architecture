@@ -8,7 +8,6 @@ use App\Http\Requests\Transaction\UpdateTransactionRequest;
 use App\Http\Resources\TransactionResource;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class TransactionController extends Controller
 {
@@ -29,22 +28,17 @@ class TransactionController extends Controller
 
     public function agentTransactions(Request $request)
     {
-        $user = Auth::user();
-        if (!$user->hasRole('agent')) { // Double check using role method if available or middleware
-        // Middleware handles it mostly
-        }
-
-        $transactions = $this->transactionService->getAgentTransactions($user->id);
+        $transactions = $this->transactionService->getAgentTransactions($request->user()->id);
         return TransactionResource::collection($transactions);
     }
 
     public function store(StoreTransactionRequest $request)
     {
-        // If agent, force agent_id to self
+        // If agent, force agent_id to self and cap the status they may set.
         $data = $request->validated();
-        if (Auth::user()->role === 'agent') {
-            $data['agent_id'] = Auth::id();
-            $data['status'] = 'pending'; // Agents can only request pending transactions
+        if ($request->user()->role?->slug === 'agent') {
+            $data['agent_id'] = $request->user()->id;
+            $data['status'] = 'pending';
         }
 
         $transaction = $this->transactionService->createTransaction($data);
@@ -53,8 +47,21 @@ class TransactionController extends Controller
 
     public function show($id)
     {
-        $transaction = $this->transactionService->transactionRepository->getById($id); // Creating a getById wrapper in service is better practice but this works for simple cases
+        $transaction = $this->transactionService->getById($id);
+        abort_if(! $transaction, 404);
+
         return new TransactionResource($transaction);
+    }
+
+    /** Simple invoice PDF for a completed transaction. */
+    public function invoice($id)
+    {
+        $transaction = $this->transactionService->getById($id);
+        abort_if(! $transaction, 404);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.invoice', ['transaction' => $transaction]);
+
+        return $pdf->download("invoice-{$transaction->id}.pdf");
     }
 
     public function update(UpdateTransactionRequest $request, $id)
@@ -68,5 +75,26 @@ class TransactionController extends Controller
     {
         $this->transactionService->deleteTransaction($id);
         return response()->noContent();
+    }
+
+    /** Earnings / revenue report — scoped to the caller's own transactions for agents. */
+    public function report(Request $request)
+    {
+        $query = \App\Models\Transaction::query();
+        if ($request->user()->role?->slug === 'agent') {
+            $query->where('agent_id', $request->user()->id);
+        }
+
+        $completed = (clone $query)->where('status', 'completed');
+
+        return response()->json([
+            'total_completed' => $completed->count(),
+            'total_revenue' => (clone $completed)->sum('amount'),
+            'total_pending' => (clone $query)->where('status', 'pending')->count(),
+            'by_month' => (clone $completed)
+                ->selectRaw("DATE_FORMAT(transaction_date, '%Y-%m') as month, SUM(amount) as total")
+                ->where('transaction_date', '>=', now()->subMonths(11)->startOfMonth())
+                ->groupBy('month')->orderBy('month')->get(),
+        ]);
     }
 }

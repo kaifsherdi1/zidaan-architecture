@@ -14,6 +14,8 @@ import Pagination from "../components/ui/Pagination";
 import Modal from "../components/ui/Modal";
 import { useStateContext } from "../contexts/ContextProvider";
 
+const API_ROOT = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api").replace(/\/api$/, '');
+
 export default function Properties() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -33,20 +35,22 @@ export default function Properties() {
   const [selectedProperties, setSelectedProperties] = useState([]);
 
   const { user } = useStateContext();
+  const roleSlug = typeof user?.role === 'object' ? user?.role?.slug : (user?.role || '');
+  const isStaffAdmin = roleSlug === 'admin' || roleSlug === 'manager';
 
   useEffect(() => {
-    getProperties(currentPage);
+    if (roleSlug) getProperties(currentPage);
     setSelectedProperties([]); // Clear selection on page/view change
-  }, [currentPage, viewMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, viewMode, roleSlug]);
 
   const getProperties = (page) => {
     setLoading(true);
-    const params = {
-      page,
-      trashed: viewMode === 'trash' ? 1 : 0
-    };
+    const params = isStaffAdmin
+      ? { page, trashed: viewMode === 'trash' ? 1 : 0 }
+      : { page };
 
-    axiosClient.get(`/properties`, { params })
+    axiosClient.get(isStaffAdmin ? `/manager/properties` : '/agent/properties', { params })
       .then(({ data }) => {
         setLoading(false);
         if (data.meta) {
@@ -77,7 +81,7 @@ export default function Properties() {
     let message = "";
 
     if (actionType === 'delete') {
-      promise = axiosClient.delete(`/properties/${propertyToAction.id}`);
+      promise = axiosClient.delete(`/manager/properties/${propertyToAction.id}`);
       message = "Property moved to trash";
     } else if (actionType === 'force-delete') {
       promise = axiosClient.delete(`/manager/properties/${propertyToAction.id}/force`);
@@ -126,7 +130,7 @@ export default function Properties() {
   };
 
   const onExport = () => {
-    axiosClient.get('/reports/properties', {
+    axiosClient.get('/admin/reports/properties', {
       params: { trashed: viewMode === 'trash' ? 1 : 0 },
       responseType: 'blob'
     })
@@ -153,16 +157,18 @@ export default function Properties() {
           <h1 className="text-2xl font-bold text-slate-800">Properties</h1>
           <p className="text-slate-500">Manage real estate listings and inventory.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={onExport} className="flex items-center gap-2">
-            <FaFileExcel className="text-green-600" />
-            Export
-          </Button>
-          <Button as={Link} to="/properties/new" className="flex items-center gap-2">
-            <FaPlus />
-            Add Property
-          </Button>
-        </div>
+        {isStaffAdmin && (
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={onExport} className="flex items-center gap-2">
+              <FaFileExcel className="text-green-600" />
+              Export
+            </Button>
+            <Button as={Link} to="/properties/new" className="flex items-center gap-2">
+              <FaPlus />
+              Add Property
+            </Button>
+          </div>
+        )}
       </div>
 
       {notification && (
@@ -174,22 +180,24 @@ export default function Properties() {
       <Card>
         <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center">
           {/* Tabs / Filter */}
-          <div className="flex bg-slate-100 p-1 rounded-lg">
-            <button
-              onClick={() => setViewMode('active')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'active' ? 'bg-white text-primary shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                }`}
-            >
-              Active
-            </button>
-            <button
-              onClick={() => setViewMode('trash')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'trash' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                }`}
-            >
-              <FaTrash className={viewMode === 'trash' ? 'text-red-500' : 'text-slate-400'} /> Trash
-            </button>
-          </div>
+          {isStaffAdmin && (
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+              <button
+                onClick={() => setViewMode('active')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'active' ? 'bg-white text-primary shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+              >
+                Active
+              </button>
+              <button
+                onClick={() => setViewMode('trash')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'trash' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+              >
+                <FaTrash className={viewMode === 'trash' ? 'text-red-500' : 'text-slate-400'} /> Trash
+              </button>
+            </div>
+          )}
 
           <div className="relative w-full sm:w-72">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -277,7 +285,11 @@ export default function Properties() {
                   <TableCell>
                     <div className="flex items-center gap-4">
                       {property.main_image ? (
-                        <img src={property.main_image} alt={property.title} className="w-16 h-16 object-cover rounded-lg border border-slate-200" />
+                        <img
+                          src={`${API_ROOT}${property.main_image}`}
+                          alt={property.title}
+                          className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+                        />
                       ) : (
                         <div className="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 border border-slate-200">
                           <span className="text-xs">No Img</span>
@@ -300,7 +312,9 @@ export default function Properties() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <span className="font-semibold text-slate-900">${Number(property.price).toLocaleString()}</span>
+                    <span className="font-semibold text-slate-900">
+                      {property.price_label || `₹${Number(property.price).toLocaleString('en-IN')}`}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 text-sm text-slate-600">
@@ -322,16 +336,20 @@ export default function Properties() {
                           <Link to={`/properties/${property.id}`} className="p-2 text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg transition-colors">
                             <FaEye />
                           </Link>
-                          <Link to={`/properties/${property.id}/edit`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors">
-                            <FaEdit />
-                          </Link>
-                          <button
-                            onClick={() => confirmAction(property, 'delete')}
-                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Move to Trash"
-                          >
-                            <FaTrash />
-                          </button>
+                          {isStaffAdmin && (
+                            <>
+                              <Link to={`/properties/${property.id}/edit`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors">
+                                <FaEdit />
+                              </Link>
+                              <button
+                                onClick={() => confirmAction(property, 'delete')}
+                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Move to Trash"
+                              >
+                                <FaTrash />
+                              </button>
+                            </>
+                          )}
                         </>
                       ) : (
                         <>

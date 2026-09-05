@@ -74,6 +74,7 @@ class PropertyService
   public function createProperty($data, $images = [])
   {
     $data['slug'] = Str::slug($data['title']) . '-' . Str::random(6);
+    $data['country'] = $data['country'] ?? 'India';
 
     $property = Property::create($data);
 

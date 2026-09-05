@@ -4,181 +4,174 @@ use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\EnquiryController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PropertyController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Resources\UserResource;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-/* |-------------------------------------------------------------------------- | API Routes |-------------------------------------------------------------------------- */
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+| Auth model: Sanctum bearer tokens. Authorisation model: `role` middleware
+| (alias for App\Http\Middleware\RoleMiddleware) gates every privileged group.
+| Public endpoints are explicitly listed; everything else requires a token.
+*/
 
-// Public routes - No authentication required
-Route::prefix('auth')->group(function () {
-  Route::post('/register', [AuthController::class , 'register']);
-  Route::post('/login', [AuthController::class , 'login']);
+// ---------------------------------------------------------------------------
+// Public — auth & password (rate limited to blunt brute force / enumeration)
+// ---------------------------------------------------------------------------
+Route::middleware('throttle:auth')->group(function () {
+    Route::post('/auth/register', [AuthController::class, 'register']);
+    Route::post('/auth/login', [AuthController::class, 'login']);
+});
+Route::middleware('throttle:otp')->group(function () {
+    Route::post('/password/forgot', [PasswordResetController::class, 'forgotPassword']);
+    Route::post('/password/reset', [PasswordResetController::class, 'resetPassword']);
 });
 
-Route::prefix('password')->group(function () {
-  Route::post('/forgot', [PasswordResetController::class , 'forgotPassword']);
-  Route::post('/reset', [PasswordResetController::class , 'resetPassword']);
-});
+// ---------------------------------------------------------------------------
+// Public — read-only catalogue
+// ---------------------------------------------------------------------------
+Route::get('/properties', [PropertyController::class, 'index']);
+Route::get('/properties/featured', [PropertyController::class, 'featured']);
+Route::get('/properties/{property}', [PropertyController::class, 'show'])->whereNumber('property');
 
-// Public Property routes
-Route::prefix('properties')->group(function () {
-  Route::get('/', [PropertyController::class , 'index']);
-  Route::get('/featured', [PropertyController::class , 'featured']);
-  Route::get('/{property}', [PropertyController::class , 'show']);
-});
+Route::get('/agents', [AgentController::class, 'index']);
+Route::get('/agents/top-performers', [AgentController::class, 'topPerformers']);
+Route::get('/agents/{id}', [AgentController::class, 'show'])->whereNumber('id');
 
-// Protected routes - Require authentication
+// Public — contact & sell-your-property forms (rate limited against spam)
+Route::post('/contact', [EnquiryController::class, 'store'])->middleware('throttle:otp');
+
+// ---------------------------------------------------------------------------
+// Authenticated (any role)
+// ---------------------------------------------------------------------------
 Route::middleware('auth:sanctum')->group(function () {
 
-  // Auth routes
-  Route::post('/logout', [AuthController::class , 'logout']);
-  Route::get('/me', [AuthController::class , 'me']);
-  Route::post('/refresh', [AuthController::class , 'refresh']);
-  Route::get('/user', function (Request $request) {
-      return $request->user();
-    }
-    );
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/refresh', [AuthController::class, 'refresh']);
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/auth/user', fn (Request $request) => new UserResource($request->user()->load('role')));
 
+    // Own profile
+    Route::get('/user/profile', [UserController::class, 'profile']);
+    Route::put('/user/profile', [UserController::class, 'updateProfile']);
+    Route::post('/user/avatar', [UserController::class, 'uploadAvatar']);
 
-    // Notifications
-    Route::get('/notifications', [NotificationController::class , 'index']);
-    Route::get('/notifications/unread-count', [NotificationController::class , 'unreadCount']);
-    Route::put('/notifications/{id}/read', [NotificationController::class , 'markAsRead']);
+    // Staff profile (admin/manager/agent dashboard) — any authenticated role
+    Route::put('/profile', [ProfileController::class, 'update']);
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword']);
 
-    // Reports
-    Route::get('/reports/properties', [\App\Http\Controllers\Api\ReportController::class , 'exportProperties']);
-    Route::get('/reports/bookings', [\App\Http\Controllers\Api\ReportController::class , 'exportBookings']);
-    Route::get('/reports/transactions', [\App\Http\Controllers\Api\ReportController::class , 'exportTransactions']);
+    // Notifications (scoped to the caller inside the controller)
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->whereNumber('id');
+    Route::put('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 
-    Route::apiResource('users', \App\Http\Controllers\Api\UserController::class);
+    // -----------------------------------------------------------------------
+    // Role: user (client)
+    // -----------------------------------------------------------------------
+    Route::middleware('role:user')->prefix('user')->group(function () {
+        Route::get('/saved-properties', [PropertyController::class, 'savedProperties']);
+        Route::post('/saved-properties/{property}', [PropertyController::class, 'toggleSaved'])->whereNumber('property');
 
-    // User role routes - Client features
-    Route::middleware(\App\Http\Middleware\RoleMiddleware::class . ':user')->prefix('user')->group(function () {
-      // Saved properties
-      Route::get('/saved-properties', function () {
-          return response()->json(['message' => 'User saved properties endpoint']);
-        }
-        );
-      }
-      );
+        Route::get('/bookings', [BookingController::class, 'userBookings']);
+        Route::post('/bookings', [BookingController::class, 'store']);
+        Route::get('/bookings/{id}', [BookingController::class, 'show'])->whereNumber('id');
+        Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel'])->whereNumber('id');
+    });
 
-      // Agent role routes
-      Route::middleware(\App\Http\Middleware\RoleMiddleware::class . ':agent')->prefix('agent')->group(function () {
-      Route::get('/properties', [PropertyController::class , 'agentProperties']);
-    }
-    );
+    // -----------------------------------------------------------------------
+    // Role: agent
+    // -----------------------------------------------------------------------
+    Route::middleware('role:agent')->prefix('agent')->group(function () {
+        Route::get('/dashboard', [AgentController::class, 'dashboard']);
+        Route::get('/dashboard/stats', [DashboardController::class, 'index']);
+        Route::get('/statistics', [AgentController::class, 'statistics']);
+        Route::get('/properties', [PropertyController::class, 'agentProperties']);
 
-    // Manager role routes
-    Route::middleware(\App\Http\Middleware\RoleMiddleware::class . ':manager,admin')->prefix('manager')->group(function () {
-      // Property management
-      Route::post('/properties', [PropertyController::class , 'store']);
-      Route::put('/properties/{id}', [PropertyController::class , 'update']);
-      Route::delete('/properties/{id}', [PropertyController::class , 'destroy']);
-      Route::post('/properties/{id}/restore', [PropertyController::class , 'restore']);
-      Route::delete('/properties/{id}/force', [PropertyController::class , 'forceDelete']);
-      Route::post('/properties/bulk-delete', [PropertyController::class , 'bulkDelete']);
-      Route::post('/properties/bulk-restore', [PropertyController::class , 'bulkRestore']);
-    }
-    );
+        Route::put('/profile', [ProfileController::class, 'update']);
+        Route::put('/profile/password', [ProfileController::class, 'updatePassword']);
 
-    // Admin role routes - User Management
-    Route::middleware(\App\Http\Middleware\RoleMiddleware::class . ':admin,manager')->prefix('admin')->group(function () {
-      // User management
-      Route::get('/users', [UserController::class , 'index']);
-      Route::get('/users/{id}', [UserController::class , 'show']);
-      Route::post('/users', [UserController::class , 'store']);
-      Route::put('/users/{id}', [UserController::class , 'update']);
-      Route::delete('/users/{id}', [UserController::class , 'destroy']);
-      Route::post('/users/{id}/restore', [UserController::class , 'restore']);
-      Route::delete('/users/{id}/force', [UserController::class , 'forceDelete']);
-      Route::post('/users/bulk-delete', [UserController::class , 'bulkDelete']);
-      Route::post('/users/bulk-restore', [UserController::class , 'bulkRestore']);
-      Route::post('/users/{id}/assign-role', [UserController::class , 'assignRole']);
+        Route::get('/bookings', [BookingController::class, 'agentBookings']);
+        Route::put('/bookings/{id}/status', [BookingController::class, 'updateStatus'])->whereNumber('id');
 
-      Route::get('/dashboard', function () {
-          return response()->json(['message' => 'Admin dashboard endpoint']);
-        }
-        );
-      }
-      );
+        Route::get('/transactions', [TransactionController::class, 'agentTransactions']);
+        Route::post('/transactions', [TransactionController::class, 'store']);
+        Route::get('/earnings', [TransactionController::class, 'report']);
+    });
 
-      // Authenticated user profile routes
-      Route::prefix('user')->group(function () {
-      Route::get('/profile', [UserController::class , 'profile']);
-      Route::put('/profile', [UserController::class , 'updateProfile']);
-      Route::post('/avatar', [UserController::class , 'uploadAvatar']);
-    }
-    );
+    // -----------------------------------------------------------------------
+    // Role: manager or admin — property management
+    // -----------------------------------------------------------------------
+    Route::middleware('role:manager,admin')->prefix('manager')->group(function () {
+        Route::get('/properties', [PropertyController::class, 'manage']);
+        Route::post('/properties', [PropertyController::class, 'store']);
+        Route::put('/properties/{property}', [PropertyController::class, 'update'])->whereNumber('property');
+        Route::delete('/properties/{property}', [PropertyController::class, 'destroy'])->whereNumber('property');
+        Route::post('/properties/{id}/restore', [PropertyController::class, 'restore'])->whereNumber('id');
+        Route::delete('/properties/{id}/force', [PropertyController::class, 'forceDelete'])->whereNumber('id');
+        Route::post('/properties/bulk-delete', [PropertyController::class, 'bulkDelete']);
+        Route::post('/properties/bulk-restore', [PropertyController::class, 'bulkRestore']);
+    });
 
-    // Agent Management Routes (Admin/Manager)
-    Route::middleware(\App\Http\Middleware\RoleMiddleware::class . ':admin,manager')->prefix('admin')->group(function () {
-      Route::post('/agents', [AgentController::class , 'store']);
-      Route::put('/agents/{id}', [AgentController::class , 'update']);
-      Route::delete('/agents/{id}', [AgentController::class , 'destroy']);
-      Route::post('/agents/{id}/restore', [AgentController::class , 'restore']);
-      Route::delete('/agents/{id}/force', [AgentController::class , 'forceDelete']);
-    }
-    );
+    // -----------------------------------------------------------------------
+    // Role: manager or admin — everything under /admin
+    // -----------------------------------------------------------------------
+    Route::middleware('role:manager,admin')->prefix('admin')->group(function () {
+        Route::get('/dashboard/stats', [DashboardController::class, 'index']);
 
-    // Agent Dashboard Routes
-    Route::middleware(\App\Http\Middleware\RoleMiddleware::class . ':agent')->prefix('agent')->group(function () {
-      Route::get('/dashboard', [AgentController::class , 'dashboard']);
-      Route::get('/statistics', [AgentController::class , 'statistics']);
-      Route::put('/profile', [AgentController::class , 'updateProfile']);
+        // Users
+        Route::get('/users', [UserController::class, 'index']);
+        Route::post('/users', [UserController::class, 'store']);
+        Route::post('/users/bulk-delete', [UserController::class, 'bulkDelete']);
+        Route::post('/users/bulk-restore', [UserController::class, 'bulkRestore']);
+        Route::get('/users/{id}', [UserController::class, 'show'])->whereNumber('id');
+        Route::put('/users/{id}', [UserController::class, 'update'])->whereNumber('id');
+        Route::delete('/users/{id}', [UserController::class, 'destroy'])->whereNumber('id');
+        Route::post('/users/{id}/restore', [UserController::class, 'restore'])->whereNumber('id');
+        Route::delete('/users/{id}/force', [UserController::class, 'forceDelete'])->whereNumber('id');
+        Route::post('/users/{id}/assign-role', [UserController::class, 'assignRole'])->whereNumber('id');
 
-      // Agent Booking Routes
-      Route::get('/bookings', [BookingController::class , 'agentBookings']);
-      Route::get('/agent/bookings', [BookingController::class , 'agentBookings']);
-      Route::put('/bookings/{id}/status', [BookingController::class , 'updateStatus']);
+        // Agents
+        Route::post('/agents', [AgentController::class, 'store']);
+        Route::put('/agents/{id}', [AgentController::class, 'update'])->whereNumber('id');
+        Route::delete('/agents/{id}', [AgentController::class, 'destroy'])->whereNumber('id');
+        Route::post('/agents/{id}/restore', [AgentController::class, 'restore'])->whereNumber('id');
+        Route::delete('/agents/{id}/force', [AgentController::class, 'forceDelete'])->whereNumber('id');
 
-      // Dashboard
-      Route::get('/dashboard/stats', [DashboardController::class , 'index']);
+        // Bookings
+        Route::get('/bookings', [BookingController::class, 'index']);
+        Route::get('/bookings/{id}', [BookingController::class, 'show'])->whereNumber('id');
+        Route::put('/bookings/{id}/status', [BookingController::class, 'updateStatus'])->whereNumber('id');
+        Route::delete('/bookings/{id}', [BookingController::class, 'destroy'])->whereNumber('id');
 
-      // Profile
-      Route::put('/profile', [ProfileController::class , 'update']);
-      Route::put('/profile/password', [ProfileController::class , 'updatePassword']);
+        // Transactions
+        Route::get('/transactions', [TransactionController::class, 'index']);
+        Route::get('/transactions/report', [TransactionController::class, 'report']);
+        Route::get('/transactions/{id}', [TransactionController::class, 'show'])->whereNumber('id');
+        Route::get('/transactions/{id}/invoice', [TransactionController::class, 'invoice'])->whereNumber('id');
+        Route::post('/transactions', [TransactionController::class, 'store']);
+        Route::put('/transactions/{id}', [TransactionController::class, 'update'])->whereNumber('id');
+        Route::delete('/transactions/{id}', [TransactionController::class, 'destroy'])->whereNumber('id');
 
-      // Agent Transaction Routes
-      Route::get('/transactions', [TransactionController::class , 'agentTransactions']);
-      Route::post('/transactions', [TransactionController::class , 'store']);
-      Route::get('/earnings', [TransactionController::class , 'report']);
-    }
-    );
+        // Enquiries (Contact / Sell inbox)
+        Route::get('/enquiries', [EnquiryController::class, 'index']);
+        Route::get('/enquiries/{id}', [EnquiryController::class, 'show'])->whereNumber('id');
+        Route::put('/enquiries/{id}', [EnquiryController::class, 'update'])->whereNumber('id');
+        Route::delete('/enquiries/{id}', [EnquiryController::class, 'destroy'])->whereNumber('id');
 
-    // User Booking Routes
-    Route::middleware(\App\Http\Middleware\RoleMiddleware::class . ':user')->prefix('user')->group(function () {
-      Route::get('/bookings', [BookingController::class , 'userBookings']);
-      Route::post('/bookings', [BookingController::class , 'store']);
-      Route::get('/bookings/{id}', [BookingController::class , 'show']);
-      Route::post('/bookings/{id}/cancel', [BookingController::class , 'cancel']);
-    }
-    );
-
-    // Admin/Manager Booking Routes
-    Route::middleware(\App\Http\Middleware\RoleMiddleware::class . ':admin,manager')->prefix('admin')->group(function () {
-      Route::get('/bookings', [BookingController::class , 'index']);
-      Route::get('/bookings/{id}', [BookingController::class , 'show']);
-      Route::delete('/bookings/{id}', [BookingController::class , 'destroy']);
-
-      // Transactions
-      Route::get('/transactions', [TransactionController::class , 'index']);
-      Route::get('/transactions/report', [TransactionController::class , 'report']);
-      Route::get('/transactions/{id}', [TransactionController::class , 'show']);
-      Route::post('/transactions', [TransactionController::class , 'store']);
-      Route::put('/transactions/{id}', [TransactionController::class , 'update']);
-      Route::delete('/transactions/{id}', [TransactionController::class , 'destroy']);
-    }
-    );
-  });
-
-// Public Agent Routes
-Route::prefix('agents')->group(function () {
-  Route::get('/', [AgentController::class , 'index']);
-  Route::get('/top-performers', [AgentController::class , 'topPerformers']);
-  Route::get('/{id}', [AgentController::class , 'show']);
+        // Reports / exports
+        Route::get('/reports/properties', [ReportController::class, 'exportProperties']);
+        Route::get('/reports/bookings', [ReportController::class, 'exportBookings']);
+        Route::get('/reports/transactions', [ReportController::class, 'exportTransactions']);
+    });
 });

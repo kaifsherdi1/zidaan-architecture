@@ -83,8 +83,8 @@ export default function Login() {
           {loading ? 'Signing In...' : 'Sign In'}
         </Button>
 
-        <p className="text-center text-sm text-slate-600 mt-6">
-          Not a member? <Link to="/register" className="text-primary hover:text-primary-dark font-bold hover:underline">Create an account</Link>
+        <p className="text-center text-xs text-slate-400 mt-6">
+          Staff access only. Ask an admin for an account.
         </p>
       </form>
     </div>

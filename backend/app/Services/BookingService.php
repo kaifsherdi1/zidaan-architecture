@@ -47,21 +47,41 @@ class BookingService
     $data['status'] = 'pending';
 
     // Check availability
-    if (!$this->bookingRepository->checkAvailability($data['property_id'], $data['booking_date'], $data['booking_time'])) {
+    if (!$this->bookingRepository->checkAvailability($data['property_id'], $data['visit_date'], $data['visit_time'])) {
       throw new \Exception('Time slot not available');
     }
 
     // Create booking
     $booking = $this->bookingRepository->create($data);
 
-    // Send notification to agent
     if ($property->agent) {
-      $property->agent->notify(new \App\Notifications\BookingNotification($booking, 'created'));
-      // Dispatch Job for email
-      \App\Jobs\ProcessBookingEmail::dispatch($booking, 'new_request');
+      $this->notify(
+        $property->agent->id,
+        'booking.created',
+        'New viewing request',
+        "A viewing was requested for \"{$property->title}\".",
+        ['booking_id' => $booking->id, 'property_id' => $property->id]
+      );
     }
 
     return $this->bookingRepository->getById($booking->id);
+  }
+
+  /** Write an in-app notification row (the DB notification table is a custom schema). */
+  private function notify(int $userId, string $type, string $title, string $message, array $data = []): void
+  {
+    try {
+      \App\Models\Notification::create([
+        'user_id' => $userId,
+        'type' => $type,
+        'title' => $title,
+        'message' => $message,
+        'data' => $data,
+        'is_read' => false,
+      ]);
+    } catch (\Throwable $e) {
+      \Illuminate\Support\Facades\Log::warning('notify failed: ' . $e->getMessage());
+    }
   }
 
   /**
@@ -75,11 +95,11 @@ class BookingService
     }
 
     // Check availability if date/time changed
-    if ((isset($data['booking_date']) && $data['booking_date'] != $booking->booking_date) ||
-    (isset($data['booking_time']) && $data['booking_time'] != $booking->booking_time)) {
+    if ((isset($data['visit_date']) && $data['visit_date'] != $booking->visit_date) ||
+    (isset($data['visit_time']) && $data['visit_time'] != $booking->visit_time)) {
 
-      $date = $data['booking_date'] ?? $booking->booking_date;
-      $time = $data['booking_time'] ?? $booking->booking_time;
+      $date = $data['visit_date'] ?? $booking->visit_date;
+      $time = $data['visit_time'] ?? $booking->visit_time;
 
       if (!$this->bookingRepository->checkAvailability($booking->property_id, $date, $time)) {
         throw new \Exception('Time slot not available');
@@ -122,28 +142,23 @@ class BookingService
   {
     $data = ['status' => $status];
     if ($note) {
-      $data['notes'] = $note;
+      $data[$status === 'rejected' ? 'rejection_reason' : 'agent_notes'] = $note;
     }
-
-    // If status is confirmed, double check availability again
-    if ($status === 'confirmed') {
-      $booking = $this->bookingRepository->getById($id);
-      if (!$this->bookingRepository->checkAvailability($booking->property_id, $booking->booking_date, $booking->booking_time)) {
-        throw new \Exception('Time slot is no longer available');
-      }
+    if ($status === 'approved') {
+      $data['approved_at'] = now();
     }
 
     $this->bookingRepository->update($id, $data);
 
-    // Send notification to user
     $booking = $this->bookingRepository->getById($id);
-    if ($booking->user) {
-      $booking->user->notify(new \App\Notifications\BookingNotification($booking, $status)); // status: approved/rejected
-
-      if ($status === 'confirmed') {
-        // Dispatch Job for email
-        \App\Jobs\ProcessBookingEmail::dispatch($booking, 'confirmation');
-      }
+    if ($booking && $booking->user) {
+      $this->notify(
+        $booking->user->id,
+        'booking.' . $status,
+        'Viewing ' . $status,
+        "Your viewing request for \"" . optional($booking->property)->title . "\" was {$status}.",
+        ['booking_id' => $booking->id]
+      );
     }
 
     return $booking;
@@ -154,14 +169,23 @@ class BookingService
    */
   public function cancelBooking(int $id, ?string $reason = null)
   {
-    $data = [
+    $booking = $this->bookingRepository->getById($id);
+
+    $this->bookingRepository->update($id, [
       'status' => 'cancelled',
-      'notes' => $reason ? "Cancelled by user: $reason" : "Cancelled by user"
-    ];
+      'cancelled_at' => now(),
+      'agent_notes' => $reason ? "Cancelled by client: {$reason}" : 'Cancelled by client',
+    ]);
 
-    $this->bookingRepository->update($id, $data);
-
-    // TODO: Send notification to agent
+    if ($booking && $booking->agent_id) {
+      $this->notify(
+        $booking->agent_id,
+        'booking.cancelled',
+        'Viewing cancelled',
+        'A client cancelled their viewing request for "' . optional($booking->property)->title . '".',
+        ['booking_id' => $id]
+      );
+    }
 
     return $this->bookingRepository->getById($id);
   }

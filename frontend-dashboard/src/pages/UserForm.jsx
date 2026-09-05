@@ -28,12 +28,9 @@ export default function UserForm() {
         .then(({ data }) => {
           setLoading(false);
           const userData = data.data;
-          // Set form values
-          Object.keys(userData).forEach(key => {
-            if (['name', 'email', 'role'].includes(key)) {
-              setValue(key, userData[key]);
-            }
-          });
+          setValue('name', userData.name);
+          setValue('email', userData.email);
+          setValue('role', userData.role?.slug || 'user');
         })
         .catch(() => {
           setLoading(false);

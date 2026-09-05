@@ -38,13 +38,15 @@ class BookingController extends Controller
     {
         $data = $request->validated();
         $data['user_id'] = $request->user()->id;
-        $data['visit_date'] = $data['booking_date'];
-        $data['visit_time'] = $data['booking_time'];
+        if (array_key_exists('message', $data)) {
+            $data['user_message'] = $data['message'];
+            unset($data['message']);
+        }
 
         try {
             $booking = $this->bookingService->createBooking($data);
             return response()->json([
-                'message' => 'Viewing request submitted successfully',
+                'message' => 'Viewing request submitted. The agent will confirm a time with you.',
                 'data' => new BookingResource($booking)
             ], 201);
         }
@@ -58,12 +60,25 @@ class BookingController extends Controller
     /**
      * Display the specified booking
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $booking = $this->bookingService->getBookingById($id);
         if (!$booking) {
             return response()->json(['message' => 'Booking not found'], 404);
         }
+
+        // A client may only see their own bookings; an agent only bookings for
+        // their properties; managers/admins see everything.
+        $user = $request->user();
+        $role = $user->role->slug ?? null;
+        $owns = $booking->user_id === $user->id;
+        $isAgentsProperty = $role === 'agent'
+            && optional($booking->property)->agent_id === $user->id;
+
+        if (! in_array($role, ['admin', 'manager'], true) && ! $owns && ! $isAgentsProperty) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
         return new BookingResource($booking);
     }
 

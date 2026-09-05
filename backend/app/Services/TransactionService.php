@@ -26,6 +26,11 @@ class TransactionService
     return $this->transactionRepository->getByAgent($agentId, $perPage);
   }
 
+  public function getById($id)
+  {
+    return $this->transactionRepository->getById($id);
+  }
+
   public function createTransaction($data)
   {
     return DB::transaction(function () use ($data) {
@@ -35,11 +40,17 @@ class TransactionService
 
       // If created as completed immediately (admin only maybe), update property
       if ($transaction->status === 'completed') {
-        $this->updatePropertyStatus($transaction->property_id, 'sold');
-      // Notify Agent (if admin created it) or Admin (if agent created it - though admin notification logic might need custom user selection)
+        $this->updatePropertyStatus($transaction->property_id);
       }
-      else {
-      // Pending transaction: Notify Admin? (We can skip admin notification for now or implement if we have admin user access)
+
+      if ($transaction->agent_id) {
+        $this->notify(
+          $transaction->agent_id,
+          'transaction.created',
+          'New transaction recorded',
+          "A {$transaction->status} transaction of ₹" . number_format((float) $transaction->amount) . ' was recorded for your listing.',
+          ['transaction_id' => $transaction->id]
+        );
       }
 
       return $transaction;
@@ -55,18 +66,14 @@ class TransactionService
       if (isset($data['status']) && $data['status'] === 'completed') {
         $this->updatePropertyStatus($transaction->property_id, 'sold');
 
-        // Notify Agent
-        if ($transaction->agent) {
-          $transaction->agent->notify(new \App\Notifications\TransactionNotification($transaction, 'completed'));
-        }
-
-        // Email Invoice to Client (assuming client_email exists or using user relation if applicable)
-        // For now, let's send to a placeholder or the agent as a test if client email isn't directly linked to a User model
-        // Assuming we might have a user linked to the transaction for the buyer/renter
-        // $transaction->user -> but we don't have 'user_id' in transaction table explicitly yet except agent_id
-        // Dispatch Job for invoice
-        if ($transaction->agent) {
-          \App\Jobs\GenerateTransactionInvoice::dispatch($transaction);
+        if ($transaction->agent_id) {
+          $this->notify(
+            $transaction->agent_id,
+            'transaction.completed',
+            'Transaction completed',
+            'A transaction for "' . optional($transaction->property)->title . '" was marked completed.',
+            ['transaction_id' => $transaction->id]
+          );
         }
       }
 
@@ -79,12 +86,29 @@ class TransactionService
     return $this->transactionRepository->delete($id);
   }
 
-  protected function updatePropertyStatus($propertyId, $status)
+  protected function updatePropertyStatus($propertyId)
   {
     $property = Property::find($propertyId);
     if ($property) {
-      $property->status = $status; // Assuming 'status' column exists on properties or we need to add it
+      $property->status = $property->type === 'rent' ? 'rented' : 'sold';
       $property->save();
+    }
+  }
+
+  /** Write an in-app notification row (custom schema, not the framework's DB channel). */
+  protected function notify(int $userId, string $type, string $title, string $message, array $data = []): void
+  {
+    try {
+      \App\Models\Notification::create([
+        'user_id' => $userId,
+        'type' => $type,
+        'title' => $title,
+        'message' => $message,
+        'data' => $data,
+        'is_read' => false,
+      ]);
+    } catch (\Throwable $e) {
+      \Illuminate\Support\Facades\Log::warning('notify failed: ' . $e->getMessage());
     }
   }
 }

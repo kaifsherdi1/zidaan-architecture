@@ -27,12 +27,12 @@ export default function NotificationDropdown() {
 
   const fetchNotifications = () => {
     axiosClient.get('/notifications/unread-count')
-      .then(({ data }) => setUnreadCount(data.count))
+      .then(({ data }) => setUnreadCount(data.count || 0))
       .catch(() => { });
 
     if (isOpen) {
       axiosClient.get('/notifications')
-        .then(({ data }) => setNotifications(data))
+        .then(({ data }) => setNotifications(data.data || []))
         .catch(() => { });
     }
   };
@@ -41,7 +41,7 @@ export default function NotificationDropdown() {
     setIsOpen(!isOpen);
     if (!isOpen) {
       axiosClient.get('/notifications')
-        .then(({ data }) => setNotifications(data))
+        .then(({ data }) => setNotifications(data.data || []))
         .catch(() => { });
     }
   };
@@ -49,7 +49,7 @@ export default function NotificationDropdown() {
   const markAsRead = (id) => {
     axiosClient.put(`/notifications/${id}/read`)
       .then(() => {
-        setNotifications(notifications.map(n => n.id === id ? { ...n, read_at: new Date() } : n));
+        setNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
         setUnreadCount(prev => Math.max(0, prev - 1));
       });
   };
@@ -57,7 +57,7 @@ export default function NotificationDropdown() {
   const markAllAsRead = () => {
     axiosClient.put('/notifications/mark-all-read')
       .then(() => {
-        setNotifications(notifications.map(n => ({ ...n, read_at: new Date() })));
+        setNotifications(notifications.map(n => ({ ...n, is_read: true })));
         setUnreadCount(0);
       });
   };
@@ -94,14 +94,17 @@ export default function NotificationDropdown() {
               notifications.map(notification => (
                 <div
                   key={notification.id}
-                  className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors ${!notification.read_at ? 'bg-blue-50/50' : ''}`}
+                  className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors ${!notification.is_read ? 'bg-blue-50/50' : ''}`}
                 >
                   <div className="flex gap-3">
                     <div className="flex-1">
-                      <p className="text-sm text-slate-800 mb-1">{notification.data.message}</p>
+                      {notification.title && (
+                        <p className="text-xs font-semibold text-slate-500 mb-0.5">{notification.title}</p>
+                      )}
+                      <p className="text-sm text-slate-800 mb-1">{notification.message}</p>
                       <span className="text-xs text-slate-400">{new Date(notification.created_at).toLocaleDateString()}</span>
                     </div>
-                    {!notification.read_at && (
+                    {!notification.is_read && (
                       <button onClick={() => markAsRead(notification.id)} className="text-slate-400 hover:text-primary">
                         <FaCheck className="w-3 h-3" />
                       </button>

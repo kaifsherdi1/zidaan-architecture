@@ -5,6 +5,7 @@ import Button from './ui/Button';
 import { useStateContext } from '../contexts/ContextProvider';
 import { NAV_LINKS, COMPANY, LOGO } from '../data/site';
 import api from '../services/api';
+import NotificationDropdown from './NotificationDropdown';
 
 // Pages that render a full-bleed dark image hero behind the fixed navbar.
 const DARK_HERO_EXACT = new Set([
@@ -122,6 +123,7 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-5 shrink-0">
             {token ? (
               <>
+                <NotificationDropdown onLight={onLight} />
                 <Link
                   to="/dashboard"
                   className={`flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-bold transition-colors hover:opacity-60 ${

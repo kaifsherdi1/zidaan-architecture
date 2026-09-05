@@ -1,0 +1,695 @@
+<title>Zidaan Platform Review</title>
+<meta name="description" content="Security audit, admin-dashboard scope, and backend change list for the Zidaan Architectures platform.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #f5f3ee;
+    --surface: #fffdf9;
+    --surface-2: #efece3;
+    --ink: #232019;
+    --ink-soft: #6c6556;
+    --ink-faint: #948c7b;
+    --rule: #e3ded1;
+    --rule-strong: #cfc8b6;
+    --gold: #977324;
+    --gold-line: #c19a45;
+    --critical: #a5312f;
+    --critical-bg: #f3e1df;
+    --high: #a96a24;
+    --high-bg: #f4e7d6;
+    --fixed: #3a7452;
+    --fixed-bg: #dfebe1;
+    --pending: #7f6a1c;
+    --pending-bg: #efe9d3;
+    --shadow: 0 1px 2px rgba(35, 32, 25, .06), 0 8px 24px -12px rgba(35, 32, 25, .12);
+    --maxw: 1120px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #191813;
+      --surface: #201e18;
+      --surface-2: #2a271f;
+      --ink: #ece7d9;
+      --ink-soft: #a89f8b;
+      --ink-faint: #7c7361;
+      --rule: #343026;
+      --rule-strong: #423d30;
+      --gold: #c9a95a;
+      --gold-line: #c19a45;
+      --critical: #db7d7a;
+      --critical-bg: #3a2320;
+      --high: #d69a54;
+      --high-bg: #362818;
+      --fixed: #79b591;
+      --fixed-bg: #1f2f24;
+      --pending: #cbb266;
+      --pending-bg: #322c17;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #191813;
+    --surface: #201e18;
+    --surface-2: #2a271f;
+    --ink: #ece7d9;
+    --ink-soft: #a89f8b;
+    --ink-faint: #7c7361;
+    --rule: #343026;
+    --rule-strong: #423d30;
+    --gold: #c9a95a;
+    --gold-line: #c19a45;
+    --critical: #db7d7a;
+    --critical-bg: #3a2320;
+    --high: #d69a54;
+    --high-bg: #362818;
+    --fixed: #79b591;
+    --fixed-bg: #1f2f24;
+    --pending: #cbb266;
+    --pending-bg: #322c17;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .5);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font: 400 16px/1.6 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { text-wrap: balance; line-height: 1.15; margin: 0; }
+  a { color: inherit; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  /* ---- masthead ---- */
+  header.masthead {
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface);
+  }
+  .masthead .wrap { padding-top: 40px; padding-bottom: 36px; }
+  .kicker {
+    font: 600 11px/1 "IBM Plex Mono", monospace;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-weight: 700;
+    font-size: clamp(30px, 5vw, 46px);
+    letter-spacing: -.02em;
+    text-transform: uppercase;
+  }
+  .lede {
+    margin-top: 16px;
+    max-width: 64ch;
+    color: var(--ink-soft);
+    font-size: 17px;
+  }
+  .meta-row {
+    margin-top: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    font: 500 12px/1 "IBM Plex Mono", monospace;
+    color: var(--ink-faint);
+  }
+  .meta-row span {
+    border: 1px solid var(--rule-strong);
+    padding: 6px 10px;
+    border-radius: 2px;
+  }
+
+  /* ---- layout ---- */
+  .shell { display: grid; grid-template-columns: 1fr; gap: 0; }
+  @media (min-width: 1000px) {
+    .shell { grid-template-columns: 214px minmax(0, 1fr); gap: 56px; }
+  }
+  nav.toc {
+    align-self: start;
+    padding-top: 44px;
+    font-size: 13.5px;
+  }
+  @media (min-width: 1000px) { nav.toc { position: sticky; top: 0; height: 100vh; overflow-y: auto; } }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  nav.toc a {
+    display: block;
+    padding: 7px 10px;
+    text-decoration: none;
+    color: var(--ink-soft);
+    border-left: 2px solid transparent;
+    border-radius: 0 2px 2px 0;
+  }
+  nav.toc a:hover { color: var(--ink); background: var(--surface-2); }
+  nav.toc a .n { font: 600 11px/1 "IBM Plex Mono", monospace; color: var(--ink-faint); margin-right: 8px; }
+  nav.toc a:focus-visible, main a:focus-visible, .chip:focus-visible { outline: 2px solid var(--gold-line); outline-offset: 2px; }
+
+  main { padding-top: 44px; padding-bottom: 96px; min-width: 0; }
+  section { scroll-margin-top: 24px; padding-block: 40px; border-top: 1px solid var(--rule); }
+  section:first-child { border-top: 0; padding-top: 8px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+  .sec-head .n {
+    font: 600 12px/1 "IBM Plex Mono", monospace;
+    color: var(--gold);
+    letter-spacing: .1em;
+  }
+  h2 { font-size: clamp(21px, 3vw, 27px); font-weight: 700; letter-spacing: -.015em; text-transform: uppercase; }
+  h3 { font-size: 16px; font-weight: 600; letter-spacing: .01em; margin-top: 28px; }
+  .sec-intro { color: var(--ink-soft); max-width: 68ch; margin: 12px 0 22px; }
+  p { margin: 0 0 14px; max-width: 72ch; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ---- scorecard ---- */
+  .score { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 8px 0 4px; }
+  @media (min-width: 620px) { .score { grid-template-columns: repeat(4, 1fr); } }
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 16px 16px 14px;
+    box-shadow: var(--shadow);
+  }
+  .tile .num { font: 700 30px/1 Inter, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .tile .lbl { margin-top: 8px; font: 500 11px/1.3 "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-faint); }
+  .tile.crit .num { color: var(--critical); }
+  .tile.high .num { color: var(--high); }
+  .tile.fixed .num { color: var(--fixed); }
+  .tile.open .num { color: var(--pending); }
+
+  /* ---- chips ---- */
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 600 10.5px/1 "IBM Plex Mono", monospace;
+    text-transform: uppercase; letter-spacing: .1em;
+    padding: 5px 8px; border-radius: 2px; white-space: nowrap;
+  }
+  .chip.crit { background: var(--critical-bg); color: var(--critical); }
+  .chip.high { background: var(--high-bg); color: var(--high); }
+  .chip.med { background: var(--surface-2); color: var(--ink-soft); }
+  .chip.fixed { background: var(--fixed-bg); color: var(--fixed); }
+  .chip.open { background: var(--pending-bg); color: var(--pending); }
+  .chip.dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* ---- findings ---- */
+  .findings { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule-strong);
+    border-radius: 3px;
+    padding: 15px 17px;
+    box-shadow: var(--shadow);
+  }
+  .finding.sev-crit { border-left-color: var(--critical); }
+  .finding.sev-high { border-left-color: var(--high); }
+  .finding.sev-med { border-left-color: var(--ink-faint); }
+  .finding-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .finding-top .id { font: 600 12px/1 "IBM Plex Mono", monospace; color: var(--ink-faint); }
+  .finding-top .name { font-weight: 600; font-size: 15px; flex: 1 1 240px; }
+  .finding dl { margin: 12px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 14px; }
+  .finding dt { font: 600 10.5px/1.5 "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-faint); }
+  .finding dd { margin: 0; color: var(--ink-soft); }
+  .finding dd .mono { color: var(--ink); font-size: 12.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 2px; }
+  @media (max-width: 560px) { .finding dl { grid-template-columns: 1fr; gap: 2px 0; } .finding dt { margin-top: 8px; } }
+
+  /* ---- module grid ---- */
+  .modules { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 18px; }
+  @media (min-width: 720px) { .modules { grid-template-columns: 1fr 1fr; } }
+  .module {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 16px 18px; box-shadow: var(--shadow);
+  }
+  .module h4 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; display: flex; align-items: center; gap: 9px; }
+  .module h4 .tag { font: 600 9.5px/1 "IBM Plex Mono", monospace; letter-spacing: .08em; padding: 4px 6px; border-radius: 2px; background: var(--surface-2); color: var(--ink-faint); }
+  .module ul { margin: 12px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 7px; font-size: 13.5px; color: var(--ink-soft); }
+  .module li { padding-left: 16px; position: relative; }
+  .module li::before { content: ""; position: absolute; left: 0; top: 9px; width: 6px; height: 1px; background: var(--gold-line); }
+  .module li b { color: var(--ink); font-weight: 600; }
+
+  /* ---- checklist ---- */
+  .checklist { margin: 16px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+  .checklist li {
+    display: grid; grid-template-columns: 22px 1fr auto; gap: 12px; align-items: start;
+    padding: 11px 4px; border-bottom: 1px solid var(--rule); font-size: 14px;
+  }
+  .checklist li:last-child { border-bottom: 0; }
+  .checklist .mark { font: 600 13px/1.4 "IBM Plex Mono", monospace; }
+  .checklist .mark.done { color: var(--fixed); }
+  .checklist .mark.todo { color: var(--ink-faint); }
+  .checklist .body b { font-weight: 600; }
+  .checklist .body span { color: var(--ink-soft); }
+  .checklist .body .mono { font-size: 12.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 2px; color: var(--ink); }
+
+  /* ---- phases ---- */
+  .phases { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; counter-reset: phase; }
+  .phase {
+    display: grid; grid-template-columns: 44px 1fr; gap: 18px;
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 16px 18px; box-shadow: var(--shadow);
+  }
+  .phase .idx {
+    font: 700 15px/1 "IBM Plex Mono", monospace; color: var(--gold);
+    border-right: 1px solid var(--rule); padding-right: 14px;
+  }
+  .phase h4 { font-size: 14.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 4px; }
+  .phase .when { font: 500 11px/1 "IBM Plex Mono", monospace; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .1em; }
+  .phase p { font-size: 13.5px; color: var(--ink-soft); margin: 8px 0 0; }
+  .phase.p0 { border-color: var(--fixed); }
+  .phase.p0 .idx { color: var(--fixed); }
+
+  /* ---- callout ---- */
+  .callout {
+    margin-top: 20px; border: 1px solid var(--rule-strong); border-radius: 3px;
+    background: var(--surface-2); padding: 15px 18px; font-size: 13.5px; color: var(--ink-soft);
+  }
+  .callout b { color: var(--ink); }
+  .callout .mono { background: var(--surface); border: 1px solid var(--rule); padding: 1px 5px; border-radius: 2px; color: var(--ink); font-size: 12.5px; }
+
+  table.creds { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13.5px; }
+  table.creds th, table.creds td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); }
+  table.creds th { font: 600 10.5px/1 "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-faint); }
+  table.creds td .mono { font-size: 12.5px; }
+
+  footer { border-top: 1px solid var(--rule); color: var(--ink-faint); font-size: 12.5px; }
+  footer .wrap { padding: 22px 24px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="kicker">Zidaan Architectures · Engineering Review</div>
+    <h1>Zidaan Platform Review</h1>
+    <p class="lede">A security audit of the Laravel API, the scope the admin dashboard needs to reach feature-complete, and the backend changes that stand between the current build and a launchable product.</p>
+    <div class="meta-row">
+      <span>API: Laravel 12 + Sanctum</span>
+      <span>Apps: frontend-user · frontend-dashboard</span>
+      <span>DB: MySQL / MariaDB</span>
+      <span>Reviewed against branch: main</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap shell">
+  <nav class="toc" aria-label="Contents">
+    <ol>
+      <li><a href="#summary"><span class="n">00</span>Summary</a></li>
+      <li><a href="#security"><span class="n">01</span>Security findings</a></li>
+      <li><a href="#admin"><span class="n">02</span>Admin dashboard scope</a></li>
+      <li><a href="#backend"><span class="n">03</span>Backend changes</a></li>
+      <li><a href="#roadmap"><span class="n">04</span>Roadmap</a></li>
+      <li><a href="#access"><span class="n">05</span>Test access</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <section id="summary">
+      <div class="sec-head"><span class="n">00</span><h2>Summary</h2></div>
+      <p class="sec-intro">The platform works end to end, but authorization was the weak point: several privileged endpoints were reachable by any logged-in account, and the auth surface had no rate limiting. The three critical and four high-severity issues below are <b>fixed in this pass</b>; the medium and low items are documented with a fix and folded into the roadmap.</p>
+
+      <div class="score">
+        <div class="tile crit"><div class="num">3</div><div class="lbl">Critical · fixed</div></div>
+        <div class="tile high"><div class="num">4</div><div class="lbl">High · fixed</div></div>
+        <div class="tile open"><div class="num">10</div><div class="lbl">Medium · open</div></div>
+        <div class="tile fixed"><div class="num">MySQL</div><div class="lbl">DB switched &amp; seeded</div></div>
+      </div>
+
+      <div class="callout">
+        <b>Fixed in this pass —</b> removed the public <span class="mono">/api/users</span> CRUD routes, moved every report and user-management endpoint behind <span class="mono">role:admin,manager</span>, added login / OTP rate limiting, hardened the password-reset flow, set a 7-day token expiry, forced JSON on API errors, closed an IDOR on booking reads, wired <span class="mono">/properties/featured</span> + saved-properties + <span class="mono">/auth/user</span>, rebuilt the route file, and pointed the backend at your XAMPP MySQL (<span class="mono">zidaan_architecture</span>, port 3307) with a fresh migrate + seed.
+      </div>
+    </section>
+
+    <section id="security">
+      <div class="sec-head"><span class="n">01</span><h2>Security findings</h2></div>
+      <p class="sec-intro">Ordered by severity. "Risk" is what an attacker could do before the change; "Fix" is what was done or what to do.</p>
+
+      <h3>Critical — fixed</h3>
+      <div class="findings">
+        <div class="finding sev-crit">
+          <div class="finding-top">
+            <span class="id">C1</span>
+            <span class="name">Broken access control on user management</span>
+            <span class="chip crit dot">Critical</span><span class="chip fixed">Fixed</span>
+          </div>
+          <dl>
+            <dt>Where</dt><dd><span class="mono">Route::apiResource('users', …)</span> sat under <span class="mono">auth:sanctum</span> only — no role gate.</dd>
+            <dt>Risk</dt><dd>Any logged-in client could list every user, and <span class="mono">PUT /api/users/{id}</span> accepted <span class="mono">role_id</span> — so a normal user could set their own account to <b>admin</b>, deactivate other admins, or delete accounts.</dd>
+            <dt>Fix</dt><dd>Deleted the open resource routes. All user management now lives at <span class="mono">/api/admin/users</span> behind <span class="mono">role:admin,manager</span>; <span class="mono">role_id</span> removed from <span class="mono">UpdateUserRequest</span> — role changes only through the dedicated admin-only <span class="mono">assign-role</span> endpoint.</dd>
+            <dt>Verified</dt><dd>client token → <span class="mono">403</span>, no token → <span class="mono">401</span>, admin token → <span class="mono">200</span>, old route → <span class="mono">404</span>.</dd>
+          </dl>
+        </div>
+
+        <div class="finding sev-crit">
+          <div class="finding-top">
+            <span class="id">C2</span>
+            <span class="name">Full-database export open to any account</span>
+            <span class="chip crit dot">Critical</span><span class="chip fixed">Fixed</span>
+          </div>
+          <dl>
+            <dt>Where</dt><dd><span class="mono">/api/reports/{properties,bookings,transactions}</span> — Excel exports, <span class="mono">auth:sanctum</span> only.</dd>
+            <dt>Risk</dt><dd>Any logged-in user could download the entire bookings table (client names, phone numbers, viewing notes) and the transactions ledger (sale prices, commissions).</dd>
+            <dt>Fix</dt><dd>Moved to <span class="mono">/api/admin/reports/*</span> behind <span class="mono">role:admin,manager</span>. Verified client → <span class="mono">403</span>.</dd>
+          </dl>
+        </div>
+
+        <div class="finding sev-crit">
+          <div class="finding-top">
+            <span class="id">C3</span>
+            <span class="name">IDOR — read any booking by ID</span>
+            <span class="chip crit dot">Critical</span><span class="chip fixed">Fixed</span>
+          </div>
+          <dl>
+            <dt>Where</dt><dd><span class="mono">BookingController@show($id)</span> loaded a booking with no ownership check; the route is in the client group.</dd>
+            <dt>Risk</dt><dd>Incrementing the URL id exposed other customers' viewings — property, date, notes.</dd>
+            <dt>Fix</dt><dd>Added a check: a client sees only their own bookings, an agent only bookings for their properties, managers/admins see all — otherwise <span class="mono">404</span>.</dd>
+          </dl>
+        </div>
+      </div>
+
+      <h3>High — fixed</h3>
+      <div class="findings">
+        <div class="finding sev-high">
+          <div class="finding-top">
+            <span class="id">H1</span><span class="name">No rate limiting on authentication</span>
+            <span class="chip high dot">High</span><span class="chip fixed">Fixed</span>
+          </div>
+          <dl>
+            <dt>Risk</dt><dd>Login, register and password endpoints were unthrottled — open to brute force and credential stuffing.</dd>
+            <dt>Fix</dt><dd>Named limiters in <span class="mono">AppServiceProvider</span>: <span class="mono">throttle:auth</span> (5/min per email+IP, 20/min per IP) on login &amp; register; <span class="mono">throttle:otp</span> (3/min, 10/hour) on the password endpoints; a global <span class="mono">throttle:api</span> (90/min) on every route. Verified: <span class="mono">429</span> after 5 bad logins.</dd>
+          </dl>
+        </div>
+        <div class="finding sev-high">
+          <div class="finding-top">
+            <span class="id">H2</span><span class="name">Weak password-reset (OTP) flow</span>
+            <span class="chip high dot">High</span><span class="chip fixed">Fixed</span>
+          </div>
+          <dl>
+            <dt>Risk</dt><dd>6-digit code valid 60 min, stored in plaintext, unlimited guesses; <span class="mono">exists:users,email</span> on "forgot" revealed which emails have accounts.</dd>
+            <dt>Fix</dt><dd>Code is hashed at rest, 10-minute TTL, 5-attempt lockout per email, and both endpoints return an identical generic message regardless of whether the account exists. Reset now enforces the same 8–15 / upper / number / symbol policy as registration.</dd>
+          </dl>
+        </div>
+        <div class="finding sev-high">
+          <div class="finding-top">
+            <span class="id">H3</span><span class="name">Bearer tokens never expired</span>
+            <span class="chip high dot">High</span><span class="chip fixed">Fixed</span>
+          </div>
+          <dl>
+            <dt>Risk</dt><dd><span class="mono">sanctum.expiration = null</span> — a leaked token worked forever.</dd>
+            <dt>Fix</dt><dd>7-day expiry via <span class="mono">SANCTUM_EXPIRATION</span>. Add <span class="mono">sanctum:prune-expired</span> to the scheduler (roadmap P1).</dd>
+          </dl>
+        </div>
+        <div class="finding sev-high">
+          <div class="finding-top">
+            <span class="id">H4</span><span class="name">Debug mode leaks internals on error</span>
+            <span class="chip high dot">High</span><span class="chip open">Partly</span>
+          </div>
+          <dl>
+            <dt>Risk</dt><dd><span class="mono">APP_DEBUG=true</span> renders full stack traces — file paths, environment, DB credentials — on any unhandled error.</dd>
+            <dt>Fix</dt><dd>API errors are now forced to JSON (no HTML debug page). <b>Still required for production:</b> <span class="mono">APP_DEBUG=false</span> and <span class="mono">APP_ENV=production</span> on the live server (roadmap P4).</dd>
+          </dl>
+        </div>
+      </div>
+
+      <h3>Medium — open</h3>
+      <div class="findings">
+        <div class="finding sev-med">
+          <div class="finding-top"><span class="id">M1</span><span class="name">No authorization Policies — coarse role gate only</span><span class="chip med dot">Medium</span><span class="chip open">Open</span></div>
+          <dl><dt>Risk</dt><dd>A <b>manager</b> can edit or delete <i>any</i> property and promote a user to admin; an <b>agent</b> can change the status of <i>any</i> booking. The role middleware gates the route, nothing gates the record.</dd>
+          <dt>Fix</dt><dd>Add <span class="mono">PropertyPolicy</span>, <span class="mono">BookingPolicy</span>, <span class="mono">UserPolicy</span>, <span class="mono">TransactionPolicy</span> and call <span class="mono">$this-&gt;authorize()</span> in every action. Rules: agents touch only their own listings/bookings; only admins grant admin/manager; nobody deletes or deactivates the last admin or themselves.</dd></dl>
+        </div>
+        <div class="finding sev-med">
+          <div class="finding-top"><span class="id">M2</span><span class="name">Mass assignment on Property</span><span class="chip med dot">Medium</span><span class="chip open">Open</span></div>
+          <dl><dt>Risk</dt><dd><span class="mono">$fillable</span> includes <span class="mono">agent_id</span>, <span class="mono">is_featured</span>, <span class="mono">views_count</span> — a manager can reassign any listing to any agent or feature anything via the API.</dd>
+          <dt>Fix</dt><dd>Set these explicitly in <span class="mono">PropertyService</span>, remove from <span class="mono">$fillable</span> / the FormRequest.</dd></dl>
+        </div>
+        <div class="finding sev-med">
+          <div class="finding-top"><span class="id">M3</span><span class="name">Public agent list over-shares</span><span class="chip med dot">Medium</span><span class="chip open">Open</span></div>
+          <dl><dt>Risk</dt><dd><span class="mono">GET /api/agents</span> returns the full <span class="mono">UserResource</span> — <span class="mono">email_verified_at</span>, role object, raw timestamps — to anonymous visitors.</dd>
+          <dt>Fix</dt><dd>Add a slim <span class="mono">PublicAgentResource</span> (name, photo, title, public phone/email only).</dd></dl>
+        </div>
+        <div class="finding sev-med">
+          <div class="finding-top"><span class="id">M4</span><span class="name">Profile update has no step-up checks</span><span class="chip med dot">Medium</span><span class="chip open">Open</span></div>
+          <dl><dt>Risk</dt><dd>A stolen token can change the account email (no re-verification) and password (no current-password check) — quietly locking the real owner out.</dd>
+          <dt>Fix</dt><dd>Require current password for password/email change; re-send verification and keep the old email active until confirmed.</dd></dl>
+        </div>
+        <div class="finding sev-med">
+          <div class="finding-top"><span class="id">M5</span><span class="name">No security headers / HTTPS enforcement</span><span class="chip med dot">Medium</span><span class="chip open">Open</span></div>
+          <dl><dt>Fix</dt><dd>Add a middleware setting <span class="mono">X-Content-Type-Options</span>, <span class="mono">X-Frame-Options</span>, <span class="mono">Referrer-Policy</span>, <span class="mono">Permissions-Policy</span>, and HSTS; <span class="mono">URL::forceScheme('https')</span> + <span class="mono">TrustProxies</span> in production.</dd></dl>
+        </div>
+        <div class="finding sev-med">
+          <div class="finding-top"><span class="id">M6</span><span class="name">Image uploads validated by extension only</span><span class="chip med dot">Medium</span><span class="chip open">Open</span></div>
+          <dl><dt>Fix</dt><dd><span class="mono">mimes:</span> is spoofable — add real content validation (<span class="mono">Intervention/Image</span> re-encode), randomised names (already done), and serve from a dedicated disk.</dd></dl>
+        </div>
+        <div class="finding sev-med">
+          <div class="finding-top"><span class="id">M7</span><span class="name">Unbounded query-driven cache keys</span><span class="chip med dot">Medium</span><span class="chip open">Open</span></div>
+          <dl><dt>Where</dt><dd><span class="mono">PropertyController@index</span> keys the cache on <span class="mono">md5(json_encode($request-&gt;all()))</span>.</dd>
+          <dt>Fix</dt><dd>Whitelist the filter params before hashing; the service already trusts arbitrary input from <span class="mono">$request-&gt;all()</span> and should validate it.</dd></dl>
+        </div>
+        <div class="finding sev-med">
+          <div class="finding-top"><span class="id">M8</span><span class="name">Tokens in localStorage</span><span class="chip med dot">Medium</span><span class="chip open">Open</span></div>
+          <dl><dt>Risk</dt><dd>Both SPAs keep the bearer token in <span class="mono">localStorage</span> — any XSS reads it. CORS runs with <span class="mono">supports_credentials: true</span> although cookies aren't used.</dd>
+          <dt>Fix</dt><dd>Either move to an httpOnly cookie + CSRF token, or accept the model and invest in XSS prevention (CSP, escaping, dependency audit). Turn off <span class="mono">supports_credentials</span> if staying on bearer tokens.</dd></dl>
+        </div>
+        <div class="finding sev-med">
+          <div class="finding-top"><span class="id">M9</span><span class="name">Swagger UI exposed</span><span class="chip med dot">Medium</span><span class="chip open">Open</span></div>
+          <dl><dt>Fix</dt><dd><span class="mono">/api/documentation</span> is public — gate it behind auth or disable <span class="mono">l5-swagger</span> in production.</dd></dl>
+        </div>
+        <div class="finding sev-med">
+          <div class="finding-top"><span class="id">M10</span><span class="name">No audit trail</span><span class="chip med dot">Medium</span><span class="chip open">Open</span></div>
+          <dl><dt>Risk</dt><dd>Nothing records who deleted a listing, changed a price, or reassigned a role — you can't detect or investigate misuse.</dd>
+          <dt>Fix</dt><dd><span class="mono">spatie/laravel-activitylog</span> on Property, User, Booking, Transaction + an admin audit-log screen. Log auth events (login, failed login, reset, role change) too.</dd></dl>
+        </div>
+      </div>
+
+      <h3>Low — frontend hygiene</h3>
+      <div class="findings">
+        <div class="finding sev-med">
+          <div class="finding-top"><span class="id">L1–L4</span><span class="name">Dashboard SPA hardening</span><span class="chip med dot">Low</span><span class="chip open">Open</span></div>
+          <dl>
+            <dt>L1</dt><dd><span class="mono">DefaultLayout</span> guards on token presence only — no role check — and calls <span class="mono">useEffect</span> after a conditional <span class="mono">return</span> (hooks-order bug). Add a <span class="mono">&lt;RequireRole&gt;</span> wrapper.</dd>
+            <dt>L2</dt><dd>The router nests <span class="mono">/bookings</span>, <span class="mono">/agents</span>, <span class="mono">/profile</span> under <span class="mono">GuestLayout</span> — logged-in users get bounced away from them.</dd>
+            <dt>L3</dt><dd><span class="mono">axios-client</span> sends <span class="mono">Authorization: Bearer null</span> when unauthenticated; skip the header instead. On <span class="mono">401</span> it clears the token but never redirects.</dd>
+            <dt>L4</dt><dd>The admin app ships a public <span class="mono">/register</span> — remove it; admins invite users.</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section id="admin">
+      <div class="sec-head"><span class="n">02</span><h2>Admin dashboard scope</h2></div>
+      <p class="sec-intro">Today the dashboard is a skeleton (Dashboard, Properties, Users, Bookings, Transactions, Agents, Profile) and the property form validates ~40 fields that don't exist in the database. Below is what each area needs to be usable, grouped by who sees it. <span class="mono">recharts</span>, <span class="mono">react-dropzone</span>, <span class="mono">react-hook-form</span> and DomPDF are already installed — the pieces are there, they need assembling.</p>
+
+      <h3>Shell — every role</h3>
+      <div class="modules">
+        <div class="module">
+          <h4>Access <span class="tag">rework</span></h4>
+          <ul>
+            <li>Login + OTP reset only — <b>no public registration</b></li>
+            <li>Role-aware sidebar and a <b>route guard</b> per page</li>
+            <li>Token auto-refresh, idle logout, "session expired" redirect</li>
+            <li>On <span class="mono">403</span> show a proper "not permitted" screen, not a blank page</li>
+          </ul>
+        </div>
+        <div class="module">
+          <h4>Chrome <span class="tag">partial</span></h4>
+          <ul>
+            <li>Breadcrumbs, page titles, toast notifications for every write</li>
+            <li>Notifications bell wired to <span class="mono">/notifications</span></li>
+            <li>Dark mode, density toggle, saved table filters</li>
+            <li>Empty / loading / error states on every list</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Admin &amp; Manager</h3>
+      <div class="modules">
+        <div class="module">
+          <h4>Overview <span class="tag">build</span></h4>
+          <ul>
+            <li>KPI tiles — live listings, sold / rented this month, viewings this week, revenue MTD, active agents</li>
+            <li>Charts — bookings trend, sales by city, revenue by month</li>
+            <li>Recent activity feed (from the audit log)</li>
+            <li>Attention queue — pending viewings, unassigned enquiries, stale listings</li>
+          </ul>
+        </div>
+        <div class="module">
+          <h4>Properties <span class="tag">rebuild form</span></h4>
+          <ul>
+            <li>Table: filter by <b>category, type, status, city, agent, price, featured</b>; bulk feature / delete / restore</li>
+            <li>Editor matched to the real schema — title, description, type, <b>category</b> (the 6 typologies), status, price ₹, beds / baths / garages, area, address / city / state / PIN / lat-lng, <b>features</b> chips, featured flag, agent assignment</li>
+            <li><b>Image manager</b> — drag-drop upload, reorder, set main, delete</li>
+            <li>Trash view with restore / permanent delete</li>
+          </ul>
+        </div>
+        <div class="module">
+          <h4>Viewings <span class="tag">build</span></h4>
+          <ul>
+            <li>Table + calendar view; filter by status, agent, date, property</li>
+            <li>Assign / reassign an agent, approve · decline · complete</li>
+            <li>Detail drawer with client info and an internal notes thread</li>
+          </ul>
+        </div>
+        <div class="module">
+          <h4>Transactions <span class="tag">build</span></h4>
+          <ul>
+            <li>Record a sale / rental — property, buyer, agent, amount, commission %, date</li>
+            <li>Generate an invoice PDF (DomPDF)</li>
+            <li>Earnings report, date-ranged, exportable</li>
+          </ul>
+        </div>
+        <div class="module">
+          <h4>Users <span class="tag">secure + build</span></h4>
+          <ul>
+            <li>Table: role, active, verified, search</li>
+            <li><b>Invite</b> a user (email + role) rather than set a password directly</li>
+            <li>Activate / deactivate, assign role, soft-delete + restore</li>
+            <li>Guards: only admin grants admin/manager; can't lock out the last admin</li>
+          </ul>
+        </div>
+        <div class="module">
+          <h4>Agents <span class="tag">build API</span></h4>
+          <ul>
+            <li>Agent profile — specialisation, experience, bio, photo, public contact</li>
+            <li>Link to a user account; publish / unpublish on the public site</li>
+            <li>Performance — listings, closed deals, rating</li>
+          </ul>
+        </div>
+        <div class="module">
+          <h4>Enquiries / Leads <span class="tag">new</span></h4>
+          <ul>
+            <li>Inbox for the public <b>Contact</b> and <b>Sell your property</b> forms (which currently POST to a route that doesn't exist)</li>
+            <li>Assign, set status, convert to a viewing or a draft listing</li>
+          </ul>
+        </div>
+        <div class="module">
+          <h4>Settings &amp; Audit <span class="tag">new</span></h4>
+          <ul>
+            <li>Public-site content the marketing app reads — company info, stats, office address, socials, featured-listings curation</li>
+            <li>Roles &amp; permissions, email templates</li>
+            <li><b>Audit log</b> — who changed / deleted what, when</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Agent — scoped views</h3>
+      <div class="modules">
+        <div class="module">
+          <h4>My work <span class="tag">build API</span></h4>
+          <ul>
+            <li>Dashboard — my listings, my viewings, my earnings</li>
+            <li>My properties — only assigned; create is limited or needs manager approval</li>
+            <li>My viewings — accept / decline / complete, propose times</li>
+            <li>Commission statement, profile</li>
+          </ul>
+        </div>
+        <div class="module">
+          <h4>Boundaries <span class="tag">policy</span></h4>
+          <ul>
+            <li>Every agent view is filtered server-side to that agent — never client-side</li>
+            <li>No access to Users, Settings, other agents' data, or global reports</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="backend">
+      <div class="sec-head"><span class="n">03</span><h2>Backend changes</h2></div>
+      <p class="sec-intro">Beyond the security fixes, a large share of the routed API is declared but not implemented — several endpoints the frontends already call return <span class="mono">404</span> or <span class="mono">500</span>.</p>
+
+      <h3>Missing / broken endpoints</h3>
+      <ul class="checklist">
+        <li><span class="mark done">done</span><span class="body"><b>PropertyController@featured</b> <span>— was 500, now implemented (public featured + available list).</span></span><span class="chip fixed">Fixed</span></li>
+        <li><span class="mark done">done</span><span class="body"><b>Saved properties</b> <span>— </span><span class="mono">GET /user/saved-properties</span><span> + toggle now work.</span></span><span class="chip fixed">Fixed</span></li>
+        <li><span class="mark done">done</span><span class="body"><b>/auth/user</b> <span>— frontend-user calls it on load; now returns a </span><span class="mono">UserResource</span><span>.</span></span><span class="chip fixed">Fixed</span></li>
+        <li><span class="mark todo">todo</span><span class="body"><b>PropertyController</b> <span>— </span><span class="mono">agentProperties, restore, forceDelete, bulkDelete, bulkRestore</span><span> are routed but not written.</span></span><span class="chip open">Open</span></li>
+        <li><span class="mark todo">todo</span><span class="body"><b>AgentController</b> <span>— </span><span class="mono">store, update, destroy, restore, forceDelete, topPerformers, dashboard, statistics, updateProfile</span><span> all missing.</span></span><span class="chip open">Open</span></li>
+        <li><span class="mark todo">todo</span><span class="body"><b>Enquiries</b> <span>— add </span><span class="mono">enquiries</span><span> table + </span><span class="mono">POST /api/contact</span><span>; the Contact and Sell forms fail silently today.</span></span><span class="chip open">Open</span></li>
+        <li><span class="mark todo">todo</span><span class="body"><b>NotificationController</b> <span>— confirm </span><span class="mono">unreadCount</span><span> / </span><span class="mono">markAsRead</span><span> exist and are scoped to the caller (no reading others' notifications by id).</span></span><span class="chip open">Open</span></li>
+      </ul>
+
+      <h3>Schema &amp; model alignment</h3>
+      <ul class="checklist">
+        <li><span class="mark todo">todo</span><span class="body"><b>Store / UpdatePropertyRequest</b> <span>validate ~40 columns that don't exist (</span><span class="mono">area_unit, floors, has_garage, meta_*, year_built, virtual_tour_url</span><span>…). Trim to the real schema and add </span><span class="mono">category</span><span>, or add the columns by migration — pick one.</span></span><span class="chip open">Open</span></li>
+        <li><span class="mark todo">todo</span><span class="body"><b>agent_id rule</b> <span>says </span><span class="mono">exists:agents,id</span><span> but the column FKs </span><span class="mono">users.id</span><span> — fix and add a check that the target user is actually an agent.</span></span><span class="chip open">Open</span></li>
+        <li><span class="mark done">done</span><span class="body"><b>category</b> <span>column added (migration + model + resource + service filter).</span></span><span class="chip fixed">Fixed</span></li>
+        <li><span class="mark todo">todo</span><span class="body"><b>Indexes</b> <span>— composite on </span><span class="mono">properties (status, type, category)</span><span>, plus </span><span class="mono">bookings (user_id, status)</span><span>.</span></span><span class="chip open">Open</span></li>
+      </ul>
+
+      <h3>Config &amp; operations</h3>
+      <ul class="checklist">
+        <li><span class="mark done">done</span><span class="body"><b>Database</b> <span>— pointed at XAMPP MySQL/MariaDB, </span><span class="mono">zidaan_architecture</span><span> on port 3307, </span><span class="mono">migrate:fresh --seed</span><span> run.</span></span><span class="chip fixed">Fixed</span></li>
+        <li><span class="mark done">done</span><span class="body"><b>Rate limiters</b> <span>defined and applied; tune the numbers against real traffic.</span></span><span class="chip fixed">Fixed</span></li>
+        <li><span class="mark todo">todo</span><span class="body"><b>Scheduler</b> <span>— </span><span class="mono">sanctum:prune-expired</span><span>, </span><span class="mono">auth:clear-resets</span><span>, activity-log pruning.</span></span><span class="chip open">Open</span></li>
+        <li><span class="mark todo">todo</span><span class="body"><b>Production .env</b> <span>— </span><span class="mono">APP_ENV=production</span><span>, </span><span class="mono">APP_DEBUG=false</span><span>, real </span><span class="mono">MAIL_*</span><span>, </span><span class="mono">SESSION_SECURE_COOKIE=true</span><span>, HTTPS </span><span class="mono">APP_URL</span><span>.</span></span><span class="chip open">Open</span></li>
+        <li><span class="mark todo">todo</span><span class="body"><b>API shape</b> <span>— version prefix </span><span class="mono">/api/v1</span><span>, one error envelope, consistent pagination meta.</span></span><span class="chip open">Open</span></li>
+      </ul>
+    </section>
+
+    <section id="roadmap">
+      <div class="sec-head"><span class="n">04</span><h2>Roadmap</h2></div>
+      <p class="sec-intro">Phase 0 is done. The rest is ordered so the platform is safe to expose before it is feature-complete.</p>
+      <div class="phases">
+        <div class="phase p0">
+          <div class="idx">P0</div>
+          <div>
+            <h4>Close the doors <span class="when">· done this pass</span></h4>
+            <p>MySQL switch + seed · removed open user/report routes · role-gated admin API · auth &amp; OTP rate limiting · hardened password reset · token expiry · booking IDOR fix · JSON API errors · wired featured / saved-properties / <span class="mono">/auth/user</span> · rebuilt route file · role test accounts.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="idx">P1</div>
+          <div>
+            <h4>Lock the records <span class="when">· ~1–2 days</span></h4>
+            <p>Policies for Property / Booking / User / Transaction · trim <span class="mono">PropertyRequest</span> to the real schema · implement the missing Property &amp; Agent controller methods · <span class="mono">PublicAgentResource</span> · security-headers middleware · scheduled token &amp; reset pruning.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="idx">P2</div>
+          <div>
+            <h4>Make the admin usable <span class="when">· ~3–5 days</span></h4>
+            <p>Role-guarded dashboard shell · property editor + image manager on the real schema · viewings workflow · users invite / roles · enquiries inbox + <span class="mono">POST /api/contact</span>.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="idx">P3</div>
+          <div>
+            <h4>Operations <span class="when">· ~3–5 days</span></h4>
+            <p>Transactions + invoice PDFs · reports &amp; exports · agent-scoped views · audit log · settings (public-site content) · dashboard charts.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="idx">P4</div>
+          <div>
+            <h4>Pre-launch <span class="when">· ~1–2 days</span></h4>
+            <p>HTTPS + HSTS · <span class="mono">APP_DEBUG=false</span> · secrets rotation · gate or drop Swagger · rate-limit tuning · DB backups · a focused pen-test pass on auth and the admin API.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="access">
+      <div class="sec-head"><span class="n">05</span><h2>Test access</h2></div>
+      <p class="sec-intro">Seeded by <span class="mono">DatabaseSeeder</span> after the MySQL switch. All three share the password <span class="mono">Password@123</span>; the dashboard lives at <span class="mono">localhost:5173</span>, the public site at <span class="mono">localhost:5174</span>, the API at <span class="mono">127.0.0.1:8000</span>.</p>
+      <table class="creds">
+        <thead><tr><th>Role</th><th>Email</th><th>Sees</th></tr></thead>
+        <tbody>
+          <tr><td><span class="chip crit" style="background:var(--surface-2);color:var(--ink)">Admin</span></td><td><span class="mono">admin@zidaan.com</span></td><td>Everything — users, settings, reports, all listings and viewings.</td></tr>
+          <tr><td><span class="chip med">Manager</span></td><td><span class="mono">manager@zidaan.com</span></td><td>Listings, viewings, transactions, users — no settings/role grants for admin.</td></tr>
+          <tr><td><span class="chip med">Client</span></td><td><span class="mono">test@example.com</span></td><td>Public site only — saved properties, own bookings. <b>Blocked</b> from every admin route (verified).</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">There is also a seeded personal admin, <span class="mono">kaifsherdi19@gmail.com</span>, carried over from <span class="mono">AdminUserSeeder</span> — change or remove that credential before any shared deployment.</div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>Zidaan Platform Review</span>
+    <span>Phase 0 applied · Phases 1–4 outstanding</span>
+  </div>
+</footer>

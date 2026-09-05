@@ -39,7 +39,8 @@ class UserService
    */
   public function createUser(array $data)
   {
-    // Hash password
+    $data = $this->resolveRole($data);
+
     if (isset($data['password'])) {
       $data['password'] = Hash::make($data['password']);
     }
@@ -56,6 +57,8 @@ class UserService
    */
   public function updateUser(int $id, array $data)
   {
+    $data = $this->resolveRole($data);
+
     // Hash password if provided
     if (isset($data['password']) && !empty($data['password'])) {
       $data['password'] = Hash::make($data['password']);
@@ -179,5 +182,19 @@ class UserService
   public function getUsersByRole(string $roleSlug, int $perPage = 15): LengthAwarePaginator
   {
     return $this->userRepository->getUsersByRole($roleSlug, $perPage);
+  }
+
+  /**
+   * The dashboard form submits a `role` slug (admin/manager/agent/user);
+   * resolve it to the `role_id` the users table actually stores.
+   */
+  private function resolveRole(array $data): array
+  {
+    if (!empty($data['role']) && empty($data['role_id'])) {
+      $data['role_id'] = \App\Models\Role::where('slug', $data['role'])->value('id');
+    }
+    unset($data['role']);
+
+    return $data;
   }
 }

@@ -3,31 +3,49 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Notification;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
-    public function index()
+    private function scope(Request $request)
     {
-        return Auth::user()->notifications()->limit(20)->get();
+        return Notification::query()->where('user_id', $request->user()->id);
     }
 
-    public function unreadCount()
+    public function index(Request $request)
     {
-        return ['count' => Auth::user()->unreadNotifications()->count()];
+        return response()->json([
+            'data' => $this->scope($request)->latest()->limit(30)->get(),
+        ]);
     }
 
-    public function markAsRead($id)
+    public function unreadCount(Request $request)
     {
-        $notification = Auth::user()->notifications()->findOrFail($id);
-        $notification->markAsRead();
-        return response()->noContent();
+        return response()->json([
+            'count' => $this->scope($request)->where('is_read', false)->count(),
+        ]);
     }
 
-    public function markAllAsRead()
+    public function markAsRead(Request $request, int $id)
     {
-        Auth::user()->unreadNotifications->markAsRead();
-        return response()->noContent();
+        $updated = $this->scope($request)->whereKey($id)->update([
+            'is_read' => true,
+            'read_at' => now(),
+        ]);
+
+        abort_if($updated === 0, 404);
+
+        return response()->json(['message' => 'Marked as read']);
+    }
+
+    public function markAllAsRead(Request $request)
+    {
+        $this->scope($request)->where('is_read', false)->update([
+            'is_read' => true,
+            'read_at' => now(),
+        ]);
+
+        return response()->json(['message' => 'All notifications marked as read']);
     }
 }

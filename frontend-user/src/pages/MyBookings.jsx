@@ -72,7 +72,7 @@ export default function MyBookings() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {bookings.map((b, i) => {
                 const p = b.property || {};
-                const date = b.visit_date || b.start_date || b.date;
+                const date = b.formatted_date || b.visit_date;
                 return (
                   <Reveal key={b.id} delay={(i % 3) * 60} className="border border-black/10">
                     <div className="relative aspect-[4/3] bg-background-off">
@@ -102,7 +102,7 @@ export default function MyBookings() {
                       {date && (
                         <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-black/60 border-t border-black/5 pt-4">
                           <Calendar size={13} /> {date}
-                          {b.visit_time ? ` · ${b.visit_time}` : ''}
+                          {b.formatted_time ? ` · ${b.formatted_time}` : ''}
                         </div>
                       )}
                       {['pending', 'approved', 'confirmed'].includes(b.status) && (

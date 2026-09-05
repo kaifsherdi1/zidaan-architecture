@@ -1,6 +1,5 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
-import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Properties from "./pages/Properties";
 import PropertyForm from "./pages/PropertyForm";
@@ -53,6 +52,22 @@ const router = createBrowserRouter([
       {
         path: '/users/:id',
         element: <UserForm key="userEdit" />
+      },
+      {
+        path: '/bookings',
+        element: <Bookings />
+      },
+      {
+        path: '/agents',
+        element: <Agents />
+      },
+      {
+        path: '/transactions',
+        element: <Transactions />
+      },
+      {
+        path: '/profile',
+        element: <Profile />
       }
     ]
   },
@@ -63,28 +78,6 @@ const router = createBrowserRouter([
       {
         path: '/login',
         element: <Login />
-      },
-      {
-        path: '/register',
-        element: <Register />
-      }
-    ]
-  },
-  {
-    path: '/',
-    element: <GuestLayout />,
-    children: [
-      {
-        path: '/bookings',
-        element: <Bookings />
-      },
-      {
-        path: '/agents',
-        element: <Agents />
-      },
-      {
-        path: '/profile',
-        element: <Profile />
       }
     ]
   },

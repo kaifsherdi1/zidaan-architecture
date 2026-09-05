@@ -58,10 +58,10 @@ export default function Agents() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold border border-slate-200">
-                        {agent.user?.name?.charAt(0).toUpperCase() || <FaUserTie />}
+                        {agent.name?.charAt(0).toUpperCase() || <FaUserTie />}
                       </div>
                       <div>
-                        <p className="font-medium text-slate-900">{agent.user?.name || 'Unknown'}</p>
+                        <p className="font-medium text-slate-900">{agent.name || 'Unknown'}</p>
                         <p className="text-xs text-slate-500">ID: #{agent.id}</p>
                       </div>
                     </div>
@@ -69,7 +69,7 @@ export default function Agents() {
                   <TableCell>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <FaEnvelope className="text-slate-400 text-xs" /> {agent.user?.email || 'N/A'}
+                        <FaEnvelope className="text-slate-400 text-xs" /> {agent.email || 'N/A'}
                       </div>
                       <div className="flex items-center gap-2 text-sm text-slate-600">
                         <FaPhone className="text-slate-400 text-xs" /> {agent.phone || 'N/A'}
@@ -79,7 +79,7 @@ export default function Agents() {
                   <TableCell>
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <FaAward className="text-primary" />
-                      {agent.specialization || 'General Real Estate'}
+                      {agent.agent?.specialization || 'General Real Estate'}
                     </div>
                   </TableCell>
                 </TableRow>

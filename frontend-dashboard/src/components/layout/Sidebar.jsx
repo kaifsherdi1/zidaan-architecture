@@ -33,7 +33,7 @@ export default function Sidebar({ isOpen, onClose }) {
   };
 
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: FaTachometerAlt, roles: ['admin', 'agent', 'user'] },
+    { name: 'Dashboard', path: '/dashboard', icon: FaTachometerAlt, roles: ['admin', 'manager', 'agent'] },
     {
       name: 'Properties',
       icon: FaHome,
@@ -43,11 +43,11 @@ export default function Sidebar({ isOpen, onClose }) {
         { name: 'Add Property', path: '/properties/new', icon: FaPlus },
       ]
     },
-    { name: 'Bookings', path: '/bookings', icon: FaCalendarAlt, roles: ['admin', 'agent', 'user'] },
-    { name: 'Agents', path: '/agents', icon: FaUserTie, roles: ['admin'] },
-    { name: 'Users', path: '/users', icon: FaUsers, roles: ['admin'] },
-    { name: 'Transactions', path: '/transactions', icon: FaMoneyBillWave, roles: ['admin', 'agent'] },
-    { name: 'Profile', path: '/profile', icon: FaUserCircle, roles: ['admin', 'agent', 'user'] },
+    { name: 'Bookings', path: '/bookings', icon: FaCalendarAlt, roles: ['admin', 'manager', 'agent'] },
+    { name: 'Agents', path: '/agents', icon: FaUserTie, roles: ['admin', 'manager'] },
+    { name: 'Users', path: '/users', icon: FaUsers, roles: ['admin', 'manager'] },
+    { name: 'Transactions', path: '/transactions', icon: FaMoneyBillWave, roles: ['admin', 'manager', 'agent'] },
+    { name: 'Profile', path: '/profile', icon: FaUserCircle, roles: ['admin', 'manager', 'agent'] },
   ];
 
   const userRole = typeof user?.role === 'object' ? user?.role?.slug : (user?.role || 'user');

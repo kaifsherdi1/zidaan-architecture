@@ -22,11 +22,11 @@ class BookingRepository
     }
 
     if (!empty($filters['date_from'])) {
-      $query->whereDate('booking_date', '>=', $filters['date_from']);
+      $query->whereDate('visit_date', '>=', $filters['date_from']);
     }
 
     if (!empty($filters['date_to'])) {
-      $query->whereDate('booking_date', '<=', $filters['date_to']);
+      $query->whereDate('visit_date', '<=', $filters['date_to']);
     }
 
     if (!empty($filters['property_id'])) {
@@ -42,7 +42,7 @@ class BookingRepository
     }
 
     // Apply sorting
-    $sortBy = $filters['sort_by'] ?? 'booking_date';
+    $sortBy = $filters['sort_by'] ?? 'visit_date';
     $sortOrder = $filters['sort_order'] ?? 'desc';
     $query->orderBy($sortBy, $sortOrder);
 
@@ -96,7 +96,7 @@ class BookingRepository
   {
     return Booking::with(['property', 'agent'])
       ->where('user_id', $userId)
-      ->orderBy('booking_date', 'desc')
+      ->orderBy('visit_date', 'desc')
       ->paginate($perPage);
   }
 
@@ -113,10 +113,10 @@ class BookingRepository
     }
 
     if (!empty($filters['date'])) {
-      $query->whereDate('booking_date', $filters['date']);
+      $query->whereDate('visit_date', $filters['date']);
     }
 
-    return $query->orderBy('booking_date', 'desc')->paginate($perPage);
+    return $query->orderBy('visit_date', 'desc')->paginate($perPage);
   }
 
   /**
@@ -130,9 +130,9 @@ class BookingRepository
     $requestedTime = Carbon::parse("$date $time");
 
     return !Booking::where('property_id', $propertyId)
-      ->whereIn('status', ['confirmed', 'completed']) // Only confirmed bookings block capability
-      ->whereDate('booking_date', $date)
-      ->whereTime('booking_time', $time)
+      ->whereIn('status', ['approved', 'completed']) // Only confirmed bookings block capability
+      ->whereDate('visit_date', $date)
+      ->whereTime('visit_time', $time)
       ->exists();
   }
 
@@ -143,10 +143,10 @@ class BookingRepository
   {
     return Booking::with(['user', 'property'])
       ->where('agent_id', $agentId)
-      ->whereIn('status', ['pending', 'confirmed'])
-      ->where('booking_date', '>=', now()->toDateString())
-      ->orderBy('booking_date', 'asc')
-      ->orderBy('booking_time', 'asc')
+      ->whereIn('status', ['pending', 'approved'])
+      ->where('visit_date', '>=', now()->toDateString())
+      ->orderBy('visit_date', 'asc')
+      ->orderBy('visit_time', 'asc')
       ->limit($limit)
       ->get();
   }

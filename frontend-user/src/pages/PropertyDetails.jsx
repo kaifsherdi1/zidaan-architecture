@@ -17,7 +17,7 @@ export default function PropertyDetails() {
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(0);
   const [lightbox, setLightbox] = useState(false);
-  const [booking, setBooking] = useState({ date: '', name: '', message: '' });
+  const [booking, setBooking] = useState({ date: '', time: '', message: '' });
   const [bookingState, setBookingState] = useState('idle');
 
   useEffect(() => {
@@ -92,16 +92,22 @@ export default function PropertyDetails() {
 
   const submitBooking = async (e) => {
     e.preventDefault();
+    if (!token) {
+      setBookingState('auth');
+      return;
+    }
     setBookingState('sending');
     try {
       await api.createBooking({
         property_id: property.id,
-        start_date: booking.date,
-        notes: `${booking.name ? booking.name + ' — ' : ''}${booking.message}`,
+        visit_date: booking.date,
+        visit_time: booking.time,
+        message: booking.message,
       });
       setBookingState('sent');
-    } catch {
-      setBookingState(token ? 'error' : 'auth');
+    } catch (err) {
+      const msg = err.response?.data?.message || err.response?.data?.errors?.visit_date?.[0];
+      setBookingState(msg || 'error');
     }
   };
 
@@ -258,18 +264,20 @@ export default function PropertyDetails() {
                 <input
                   type="date"
                   required
+                  min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
                   value={booking.date}
                   onChange={(e) => setBooking((b) => ({ ...b, date: e.target.value }))}
                   className="field-input"
                 />
               </label>
               <label className="block">
-                <span className="eyebrow">Full name</span>
+                <span className="eyebrow">Preferred time</span>
                 <input
-                  value={booking.name}
-                  onChange={(e) => setBooking((b) => ({ ...b, name: e.target.value }))}
+                  type="time"
+                  required
+                  value={booking.time}
+                  onChange={(e) => setBooking((b) => ({ ...b, time: e.target.value }))}
                   className="field-input"
-                  placeholder="Your name"
                 />
               </label>
               <label className="block sm:col-span-2">
@@ -285,12 +293,12 @@ export default function PropertyDetails() {
               {bookingState === 'auth' && (
                 <p className="sm:col-span-2 text-[12px] text-black/60 leading-relaxed">
                   Please <Link to="/login" className="underline">log in</Link> or{' '}
-                  <Link to="/register" className="underline">create an account</Link> to complete your request.
+                  <Link to="/register" className="underline">create an account</Link> to request a viewing.
                 </p>
               )}
-              {bookingState === 'error' && (
+              {!['idle', 'sending', 'sent', 'auth'].includes(bookingState) && (
                 <p className="sm:col-span-2 text-[12px] text-red-600">
-                  Something went wrong. Please try again.
+                  {bookingState === 'error' ? 'Something went wrong. Please try again.' : bookingState}
                 </p>
               )}
               <Button
