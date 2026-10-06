@@ -28,6 +28,11 @@ class EnquiryController extends Controller
             'price' => ['nullable', 'numeric'],
         ]);
 
+        // Honeypot — the forms render a hidden "website" field that people never fill in.
+        if ($request->filled('website')) {
+            return response()->json(['message' => 'Thanks — the studio will be in touch shortly.', 'data' => null], 201);
+        }
+
         $sellFields = array_filter($request->only(['address', 'type', 'bedrooms', 'price']), fn ($v) => $v !== null && $v !== '');
         $isSell = str_contains(mb_strtolower($data['subject'] ?? ''), 'sell') || ! empty($sellFields);
 
@@ -43,6 +48,13 @@ class EnquiryController extends Controller
             'source' => $request->header('Referer'),
             'ip_address' => $request->ip(),
         ]);
+
+        app(\App\Services\Notifier::class)->staff(
+            'enquiry.created',
+            $enquiry->type === 'sell' ? 'New sell-your-property enquiry' : 'New enquiry',
+            "{$enquiry->name} ({$enquiry->email}) wrote: " . \Illuminate\Support\Str::limit((string) $enquiry->message ?: (string) $enquiry->subject, 160),
+            ['enquiry_id' => $enquiry->id],
+        );
 
         return response()->json([
             'message' => "Thanks {$data['name']} — the studio will be in touch shortly.",
@@ -66,7 +78,7 @@ class EnquiryController extends Controller
             $query->where(fn ($q) => $q->where('name', 'like', "%{$s}%")->orWhere('email', 'like', "%{$s}%"));
         }
 
-        return response()->json($query->latest()->paginate($request->get('per_page', 20)));
+        return response()->json($query->latest()->paginate($this->perPage($request, 20)));
     }
 
     public function show(int $id)
@@ -80,18 +92,21 @@ class EnquiryController extends Controller
 
         $data = $request->validate([
             'status' => ['sometimes', Rule::in(['new', 'in_progress', 'closed'])],
-            'assigned_to' => ['sometimes', 'nullable', 'exists:users,id'],
+            'assigned_to' => ['sometimes', 'nullable', Rule::exists('users', 'id')->where(fn ($q) => $q->whereIn('role_id', \App\Models\Role::whereIn('slug', ['admin', 'manager', 'agent'])->pluck('id')))],
             'internal_notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ]);
 
         $enquiry->update($data);
+        \App\Models\ActivityLog::record('enquiry.updated', $enquiry, "Updated enquiry from {$enquiry->email}", ['fields' => array_keys($data)]);
 
         return response()->json(['message' => 'Enquiry updated', 'data' => $enquiry->fresh(['assignee', 'property'])]);
     }
 
     public function destroy(int $id)
     {
-        Enquiry::findOrFail($id)->delete();
+        $enquiry = Enquiry::findOrFail($id);
+        $enquiry->delete();
+        \App\Models\ActivityLog::record('enquiry.deleted', $enquiry, "Deleted enquiry from {$enquiry->email}");
 
         return response()->json(['message' => 'Enquiry deleted']);
     }

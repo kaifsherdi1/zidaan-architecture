@@ -27,16 +27,17 @@ class Transaction extends Model
 
     public function property()
     {
-        return $this->belongsTo(Property::class);
+        // Financial history must keep resolving after a listing or person is trashed.
+        return $this->belongsTo(Property::class)->withTrashed();
     }
 
     public function agent()
     {
-        return $this->belongsTo(User::class , 'agent_id');
+        return $this->belongsTo(User::class, 'agent_id')->withTrashed();
     }
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 }

@@ -14,7 +14,7 @@ class BookingRepository
    */
   public function getAll(array $filters = [], int $perPage = 15): LengthAwarePaginator
   {
-    $query = Booking::with(['user', 'property', 'agent']);
+    $query = Booking::with(['user', 'property.images', 'agent']);
 
     // Apply filters
     if (!empty($filters['status'])) {
@@ -42,8 +42,8 @@ class BookingRepository
     }
 
     // Apply sorting
-    $sortBy = $filters['sort_by'] ?? 'visit_date';
-    $sortOrder = $filters['sort_order'] ?? 'desc';
+    $sortBy = in_array($filters['sort_by'] ?? null, ['visit_date', 'created_at', 'status'], true) ? $filters['sort_by'] : 'visit_date';
+    $sortOrder = strtolower($filters['sort_order'] ?? '') === 'asc' ? 'asc' : 'desc';
     $query->orderBy($sortBy, $sortOrder);
 
     return $query->paginate($perPage);
@@ -54,7 +54,7 @@ class BookingRepository
    */
   public function getById(int $id): ?Booking
   {
-    return Booking::with(['user', 'property', 'agent'])->find($id);
+    return Booking::with(['user', 'property.images', 'agent'])->find($id);
   }
 
   /**
@@ -94,7 +94,7 @@ class BookingRepository
    */
   public function getByUser(int $userId, int $perPage = 15): LengthAwarePaginator
   {
-    return Booking::with(['property', 'agent'])
+    return Booking::with(['property.images', 'agent'])
       ->where('user_id', $userId)
       ->orderBy('visit_date', 'desc')
       ->paginate($perPage);
@@ -105,7 +105,7 @@ class BookingRepository
    */
   public function getByAgent(int $agentId, array $filters = [], int $perPage = 15): LengthAwarePaginator
   {
-    $query = Booking::with(['user', 'property'])
+    $query = Booking::with(['user', 'property.images'])
       ->where('agent_id', $agentId);
 
     if (!empty($filters['status'])) {
@@ -141,7 +141,7 @@ class BookingRepository
    */
   public function getUpcomingBookings(int $agentId, int $limit = 5): Collection
   {
-    return Booking::with(['user', 'property'])
+    return Booking::with(['user', 'property.images'])
       ->where('agent_id', $agentId)
       ->whereIn('status', ['pending', 'approved'])
       ->where('visit_date', '>=', now()->toDateString())

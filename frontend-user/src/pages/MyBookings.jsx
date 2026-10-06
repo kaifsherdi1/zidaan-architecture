@@ -7,6 +7,7 @@ import AccountNav from '../components/AccountNav';
 import Reveal from '../components/ui/Reveal';
 import Button from '../components/ui/Button';
 import api from '../services/api';
+import { apiError } from '../utils/errors';
 import { propertyFallback } from '../data/images';
 
 const STATUS_STYLES = {
@@ -19,24 +20,29 @@ const STATUS_STYLES = {
 
 export default function MyBookings() {
   const [bookings, setBookings] = useState(null);
+  const [error, setError] = useState('');
 
   const load = () => {
     api
       .getUserBookings()
       .then(({ data }) => setBookings(data.data || []))
-      .catch(() => setBookings([]));
+      .catch((err) => {
+        setBookings([]);
+        setError(apiError(err, 'Your viewings could not be loaded.'));
+      });
   };
 
   useEffect(load, []);
 
   const cancel = async (id) => {
     if (!window.confirm('Cancel this viewing request?')) return;
+    setError('');
     try {
       await api.cancelBooking(id);
-    } catch {
-      /* optimistic */
+      setBookings((bs) => bs.map((b) => (b.id === id ? { ...b, status: 'cancelled' } : b)));
+    } catch (err) {
+      setError(apiError(err, 'That viewing could not be cancelled.'));
     }
-    setBookings((bs) => bs.map((b) => (b.id === id ? { ...b, status: 'cancelled' } : b)));
   };
 
   return (
@@ -51,6 +57,10 @@ export default function MyBookings() {
       <section className="section-padding-sm bg-white">
         <div className="section-container">
           <AccountNav />
+
+          {error && (
+            <p role="alert" className="mb-8 border border-red-300 bg-red-50 text-red-700 text-sm px-4 py-3">{error}</p>
+          )}
 
           {bookings === null ? (
             <div className="h-64 flex items-center justify-center">

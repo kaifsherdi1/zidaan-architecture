@@ -7,161 +7,117 @@ use App\Http\Requests\Booking\StoreBookingRequest;
 use App\Http\Requests\Booking\UpdateBookingStatusRequest;
 use App\Http\Resources\BookingCollection;
 use App\Http\Resources\BookingResource;
+use App\Models\Booking;
 use App\Services\BookingService;
 use Illuminate\Http\Request;
 
 class BookingController extends Controller
 {
-    protected BookingService $bookingService;
-
-    public function __construct(BookingService $bookingService)
+    public function __construct(protected BookingService $bookingService)
     {
-        $this->bookingService = $bookingService;
     }
 
-    /**
-     * Display a listing of bookings (Admin/Manager)
-     */
+    /** Admin/Manager — every viewing request. */
     public function index(Request $request)
     {
-        $filters = $request->only(['status', 'date_from', 'date_to', 'property_id', 'agent_id']);
-        $perPage = $request->get('per_page', 15);
+        $filters = $request->only(['status', 'date_from', 'date_to', 'property_id', 'agent_id', 'sort_by', 'sort_order']);
 
-        $bookings = $this->bookingService->getAllBookings($filters, $perPage);
-        return new BookingCollection($bookings);
+        return new BookingCollection($this->bookingService->getAllBookings($filters, $this->perPage($request)));
     }
 
-    /**
-     * Store a newly created booking (User)
-     */
+    /** Client — request a viewing. */
     public function store(StoreBookingRequest $request)
     {
         $data = $request->validated();
         $data['user_id'] = $request->user()->id;
-        if (array_key_exists('message', $data)) {
-            $data['user_message'] = $data['message'];
-            unset($data['message']);
-        }
+        $data['user_message'] = $data['message'] ?? null;
+        unset($data['message']);
 
-        try {
-            $booking = $this->bookingService->createBooking($data);
-            return response()->json([
-                'message' => 'Viewing request submitted. The agent will confirm a time with you.',
-                'data' => new BookingResource($booking)
-            ], 201);
-        }
-        catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 422);
-        }
+        $booking = $this->bookingService->createBooking($data);
+
+        return response()->json([
+            'message' => 'Viewing request submitted. The agent will confirm a time with you.',
+            'data' => new BookingResource($booking),
+        ], 201);
     }
 
-    /**
-     * Display the specified booking
-     */
-    public function show(Request $request, $id)
+    public function show(Request $request, int $id)
     {
-        $booking = $this->bookingService->getBookingById($id);
-        if (!$booking) {
-            return response()->json(['message' => 'Booking not found'], 404);
-        }
-
-        // A client may only see their own bookings; an agent only bookings for
-        // their properties; managers/admins see everything.
-        $user = $request->user();
-        $role = $user->role->slug ?? null;
-        $owns = $booking->user_id === $user->id;
-        $isAgentsProperty = $role === 'agent'
-            && optional($booking->property)->agent_id === $user->id;
-
-        if (! in_array($role, ['admin', 'manager'], true) && ! $owns && ! $isAgentsProperty) {
-            return response()->json(['message' => 'Not found'], 404);
-        }
+        $booking = $this->findVisibleTo($request, $id);
 
         return new BookingResource($booking);
     }
 
-    /**
-     * Display user's bookings
-     */
+    /** Client — their own requests. */
     public function userBookings(Request $request)
     {
-        $bookings = $this->bookingService->getUserBookings($request->user()->id);
-        return new BookingCollection($bookings);
+        return new BookingCollection(
+            $this->bookingService->getUserBookings($request->user()->id, $this->perPage($request, 15, 50))
+        );
     }
 
-    /**
-     * Display agent's bookings
-     */
+    /** Agent — requests for their own listings. */
     public function agentBookings(Request $request)
     {
-        $user = $request->user();
-        if (!$user->agent) {
-            return response()->json(['message' => 'Agent profile not found'], 404);
-        }
-
         $filters = $request->only(['status', 'date']);
-        $bookings = $this->bookingService->getAgentBookings($user->agent->id, $filters);
-        return new BookingCollection($bookings);
+
+        return new BookingCollection(
+            $this->bookingService->getAgentBookings($request->user()->id, $filters, $this->perPage($request))
+        );
     }
 
-    /**
-     * Update booking status (Agent)
-     */
-    public function updateStatus(UpdateBookingStatusRequest $request, $id)
+    /** Agent (own listings only) or Admin/Manager — approve / reject / complete / cancel. */
+    public function updateStatus(UpdateBookingStatusRequest $request, int $id)
     {
+        $booking = $this->findVisibleTo($request, $id);
         $data = $request->validated();
 
-        try {
-            $booking = $this->bookingService->updateStatus($id, $data['status'], $data['notes'] ?? null);
-            return response()->json([
-                'message' => 'Booking status updated successfully',
-                'data' => new BookingResource($booking)
-            ]);
-        }
-        catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 422);
-        }
-    }
-
-    /**
-     * Cancel booking (User)
-     */
-    public function cancel(Request $request, $id)
-    {
-        $booking = $this->bookingService->getBookingById($id);
-
-        if (!$booking) {
-            return response()->json(['message' => 'Booking not found'], 404);
-        }
-
-        if ($booking->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        if ($booking->status === 'cancelled' || $booking->status === 'completed') {
-            return response()->json(['message' => 'Cannot cancel this booking'], 422);
-        }
-
-        $reason = $request->input('reason');
-        $this->bookingService->cancelBooking($id, $reason);
+        $booking = $this->bookingService->updateStatus($booking, $data['status'], $data['notes'] ?? null, $request->user());
 
         return response()->json([
-            'message' => 'Booking cancelled successfully'
+            'message' => 'Booking status updated successfully',
+            'data' => new BookingResource($booking),
         ]);
     }
 
-    /**
-     * Delete booking (Admin)
-     */
-    public function destroy($id)
+    /** Client — withdraw their own request. */
+    public function cancel(Request $request, int $id)
     {
-        if ($this->bookingService->deleteBooking($id)) {
-            return response()->json(['message' => 'Booking deleted successfully']);
-        }
-        return response()->json(['message' => 'Booking not found'], 404);
+        $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
+
+        $booking = Booking::with(['user', 'property'])->find($id);
+        abort_if(! $booking || $booking->user_id !== $request->user()->id, 404, 'Booking not found');
+
+        $this->bookingService->cancelBooking($booking, $request->input('reason'));
+
+        return response()->json(['message' => 'Booking cancelled successfully']);
+    }
+
+    /** Admin/Manager. */
+    public function destroy(int $id)
+    {
+        abort_if(! $this->bookingService->deleteBooking($id), 404, 'Booking not found');
+
+        return response()->json(['message' => 'Booking deleted successfully']);
+    }
+
+    /**
+     * Load a booking the caller is allowed to see: admins/managers see all,
+     * agents only bookings on their own listings, clients only their own.
+     * Anything else is a 404 so IDs can't be probed.
+     */
+    private function findVisibleTo(Request $request, int $id): Booking
+    {
+        $booking = $this->bookingService->getBookingById($id);
+        $user = $request->user();
+
+        $visible = $booking && (
+            $user->hasRole('admin', 'manager')
+            || ($user->hasRole('agent') && $booking->agent_id === $user->id)
+            || $booking->user_id === $user->id
+        );
+        abort_if(! $visible, 404, 'Booking not found');
+
+        return $booking;
     }
 }

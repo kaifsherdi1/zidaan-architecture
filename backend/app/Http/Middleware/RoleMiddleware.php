@@ -8,30 +8,21 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RoleMiddleware
 {
-  /**
-   * Handle an incoming request.
-   *
-   * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-   * @param  string  ...$roles
-   */
-  public function handle(Request $request, Closure $next, string...$roles): Response
-  {
-    if (!$request->user()) {
-      return response()->json([
-        'message' => 'Unauthenticated.'
-      ], 401);
+    /**
+     * @param  string  ...$roles  role slugs allowed through
+     */
+    public function handle(Request $request, Closure $next, string ...$roles): Response
+    {
+        if (! $request->user()) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (! $request->user()->hasRole(...$roles)) {
+            return response()->json([
+                'message' => 'You do not have permission to access this resource.',
+            ], 403);
+        }
+
+        return $next($request);
     }
-
-    $userRole = $request->user()->role->slug ?? null;
-
-    if (!$userRole || !in_array($userRole, $roles)) {
-      return response()->json([
-        'message' => 'Unauthorized. You do not have permission to access this resource.',
-        'required_roles' => $roles,
-        'your_role' => $userRole
-      ], 403);
-    }
-
-    return $next($request);
-  }
 }

@@ -8,7 +8,9 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Card from "../components/ui/Card";
 
-const API_ROOT = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api").replace(/\/api$/, '');
+import { assetUrl } from "../utils/url";
+import { apiError, applyServerErrors } from "../utils/auth";
+import { useStateContext } from "../contexts/ContextProvider";
 
 const CATEGORIES = [
   { value: 'apartment', label: 'Apartment' },
@@ -26,8 +28,10 @@ export default function PropertyForm() {
   const [imageFiles, setImageFiles] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [formError, setFormError] = useState('');
+  const { setNotification } = useStateContext();
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, setValue, setError, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
       title: '',
       description: '',
@@ -45,7 +49,7 @@ export default function PropertyForm() {
       country: 'India',
       zip_code: '',
       agent_id: '',
-      features: []
+      is_featured: false,
     }
   });
 
@@ -59,7 +63,19 @@ export default function PropertyForm() {
     setImageFiles(prev => [...prev, ...acceptedFiles]);
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: 'image/*' });
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/jpeg': [], 'image/png': [], 'image/webp': [] },
+    maxSize: 5 * 1024 * 1024,
+    onDropRejected: () => setFormError('Photos must be JPG, PNG or WebP and at most 5 MB each.'),
+  });
+
+  const deleteExistingImage = (img) => {
+    if (!window.confirm('Remove this photo from the listing? This cannot be undone.')) return;
+    axiosClient.delete(`/manager/properties/${id}/images/${img.id}`)
+      .then(({ data }) => setExistingImages(data.data?.images || []))
+      .catch((err) => setFormError(apiError(err)));
+  };
 
   const removeFile = (file) => {
     setImageFiles(prev => prev.filter(f => f !== file));
@@ -84,20 +100,27 @@ export default function PropertyForm() {
           setValue('country', property.location?.country || 'India');
           setValue('zip_code', property.location?.zip_code || '');
           setValue('agent_id', property.agent?.id || '');
+          setValue('is_featured', !!property.is_featured);
 
           setExistingImages(property.images || []);
         })
-        .catch(() => {
+        .catch((err) => {
           setLoading(false);
+          setFormError(apiError(err, 'Could not load this property.'));
         });
     }
   }, [id, setValue]);
 
   const onSubmit = (data) => {
+    setFormError('');
     const formData = new FormData();
 
-    Object.keys(data).forEach(key => {
-      formData.append(key, data[key]);
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'is_featured') {
+        formData.append(key, value ? '1' : '0');
+      } else if (value !== null && value !== undefined) {
+        formData.append(key, value);
+      }
     });
 
     imageFiles.forEach(file => {
@@ -110,20 +133,22 @@ export default function PropertyForm() {
 
     const url = id ? `/manager/properties/${id}` : '/manager/properties';
 
-    axiosClient.post(url, formData, {
+    return axiosClient.post(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     })
       .then(() => {
+        setNotification(id ? 'Property updated.' : 'Property created.');
         navigate('/properties');
       })
       .catch(err => {
-        const response = err.response;
-        if (response && response.status === 422) {
-          console.error(response.data.errors);
-          // Could manually set errors here if needed
+        if (applyServerErrors(err, setError)) {
+          setFormError('Please fix the highlighted fields.');
+        } else {
+          setFormError(apiError(err));
         }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
   }
 
@@ -138,6 +163,7 @@ export default function PropertyForm() {
 
         {!loading && (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            {formError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm" role="alert">{formError}</div>}
             {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-slate-800 border-b border-slate-100 pb-2">Basic Information</h3>
@@ -238,15 +264,19 @@ export default function PropertyForm() {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-slate-800 border-b border-slate-100 pb-2">Location</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input label="Address" {...register('address')} className="md:col-span-2" />
+                <Input label="Address" error={errors.address?.message} {...register('address', { required: 'Address is required' })} className="md:col-span-2" />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="City" {...register('city')} />
-                  <Input label="State" {...register('state')} />
+                  <Input label="City" error={errors.city?.message} {...register('city', { required: 'City is required' })} />
+                  <Input label="State" error={errors.state?.message} {...register('state', { required: 'State is required' })} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Country" {...register('country')} />
-                  <Input label="Zip Code" {...register('zip_code')} />
+                  <Input label="Country" error={errors.country?.message} {...register('country')} />
+                  <Input label="PIN Code" error={errors.zip_code?.message} {...register('zip_code', { required: 'PIN code is required' })} />
                 </div>
+                <label className="flex items-center gap-3 text-sm text-slate-700 cursor-pointer md:col-span-2">
+                  <input type="checkbox" {...register('is_featured')} className="w-4 h-4" />
+                  Feature this listing on the home page (only shown while available)
+                </label>
               </div>
             </div>
 
@@ -260,7 +290,16 @@ export default function PropertyForm() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {existingImages.map((img) => (
                       <div key={img.id} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200">
-                        <img src={`${API_ROOT}${img.url}`} alt="" className="w-full h-full object-cover" />
+                        <img src={assetUrl(img.url)} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => deleteExistingImage(img)}
+                          className="absolute top-1 right-1 bg-white/90 text-red-500 p-1.5 rounded-full shadow-sm hover:bg-white"
+                          aria-label="Remove photo"
+                          title="Remove photo"
+                        >
+                          <FaTimes className="text-xs" />
+                        </button>
                         {img.is_main && (
                           <span className="absolute bottom-1 left-1 bg-primary text-white text-[10px] px-1.5 py-0.5 rounded">Main</span>
                         )}
@@ -277,7 +316,7 @@ export default function PropertyForm() {
                 <div className="flex flex-col items-center">
                   <FaCloudUploadAlt className="w-10 h-10 text-slate-400 mb-2" />
                   <p className="text-sm font-medium text-slate-700">Click to upload or drag and drop</p>
-                  <p className="text-xs text-slate-500 mt-1">SVG, PNG, JPG or GIF (max. 5MB)</p>
+                  <p className="text-xs text-slate-500 mt-1">JPG, PNG or WebP — up to 10 photos, 5 MB each. The first photo becomes the cover.</p>
                 </div>
               </div>
 
@@ -289,7 +328,8 @@ export default function PropertyForm() {
                       <button
                         type="button"
                         onClick={() => removeFile(file)}
-                        className="absolute top-1 right-1 bg-white/90 text-red-500 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                        className="absolute top-1 right-1 bg-white/90 text-red-500 p-1 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity shadow-sm"
+                        aria-label="Remove photo"
                       >
                         <FaTimes className="text-xs" />
                       </button>

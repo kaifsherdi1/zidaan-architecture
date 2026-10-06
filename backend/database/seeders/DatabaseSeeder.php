@@ -14,13 +14,29 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        // Always: roles + the environment-configured admin account.
         $this->call([
             RoleSeeder::class,
+            AdminUserSeeder::class,
         ]);
 
-        // Test accounts, one per role.
+        // Demo data (weak-password test logins, sample catalogue). Independent of
+        // APP_ENV — a "production" portfolio/demo deploy sets SEED_DEMO_DATA=true
+        // on purpose so visitors see a populated site; a real client deployment
+        // leaves it unset/false.
+        if (filter_var(env('SEED_DEMO_DATA', ! app()->environment('production')), FILTER_VALIDATE_BOOLEAN)) {
+            $this->seedDemoAccounts();
+
+            $this->call([
+                DemoAgentSeeder::class,
+                RealEstateSeeder::class,
+            ]);
+        }
+    }
+
+    private function seedDemoAccounts(): void
+    {
         $accounts = [
-            ['admin',   'Studio Admin',   'admin@zidaan.com',   'Password@123'],
             ['manager', 'Studio Manager', 'manager@zidaan.com', 'Password@123'],
             ['user',    'Test User',      'test@example.com',    'Password@123'],
         ];
@@ -37,11 +53,5 @@ class DatabaseSeeder extends Seeder
                 ]
             );
         }
-
-        $this->call([
-            AdminUserSeeder::class,
-            DemoAgentSeeder::class,
-            RealEstateSeeder::class,
-        ]);
     }
 }

@@ -11,3 +11,8 @@ coverage
 Thumbs.db
 storage/*.key
 vendor/
+backend/certs/
+
+# Env templates are documentation — keep them in git (real .env files stay ignored)
+!**/.env.example
+!**/.env.*.example

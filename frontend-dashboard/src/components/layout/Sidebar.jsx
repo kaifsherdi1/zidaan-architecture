@@ -13,7 +13,9 @@ import {
   FaChevronDown,
   FaChevronRight,
   FaPlus,
-  FaList
+  FaList,
+  FaInbox,
+  FaHistory
 } from "react-icons/fa";
 import { useStateContext } from "../../contexts/ContextProvider";
 import clsx from "clsx";
@@ -40,18 +42,24 @@ export default function Sidebar({ isOpen, onClose }) {
       roles: ['admin', 'manager', 'agent'],
       submenu: [
         { name: 'List Properties', path: '/properties', icon: FaList },
-        { name: 'Add Property', path: '/properties/new', icon: FaPlus },
+        { name: 'Add Property', path: '/properties/new', icon: FaPlus, roles: ['admin', 'manager'] },
       ]
     },
     { name: 'Bookings', path: '/bookings', icon: FaCalendarAlt, roles: ['admin', 'manager', 'agent'] },
+    { name: 'Enquiries', path: '/enquiries', icon: FaInbox, roles: ['admin', 'manager'] },
     { name: 'Agents', path: '/agents', icon: FaUserTie, roles: ['admin', 'manager'] },
     { name: 'Users', path: '/users', icon: FaUsers, roles: ['admin', 'manager'] },
     { name: 'Transactions', path: '/transactions', icon: FaMoneyBillWave, roles: ['admin', 'manager', 'agent'] },
+    { name: 'Activity Log', path: '/activity', icon: FaHistory, roles: ['admin'] },
     { name: 'Profile', path: '/profile', icon: FaUserCircle, roles: ['admin', 'manager', 'agent'] },
   ];
 
   const userRole = typeof user?.role === 'object' ? user?.role?.slug : (user?.role || 'user');
-  const filteredNavItems = navItems.filter(item => item.roles.includes(userRole));
+  const filteredNavItems = navItems
+    .filter(item => item.roles.includes(userRole))
+    .map(item => item.submenu
+      ? { ...item, submenu: item.submenu.filter(sub => !sub.roles || sub.roles.includes(userRole)) }
+      : item);
 
   return (
     <>

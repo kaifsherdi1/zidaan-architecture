@@ -54,6 +54,14 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Public site and staff dashboard origins — used for links in emails.
+    'frontend_url' => env('FRONTEND_URL'),
+    'dashboard_url' => env('DASHBOARD_URL'),
+
+    // Force generated URLs (mail links, assets, Storage::url) to https when
+    // running behind a TLS-terminating proxy.
+    'force_https' => (bool) env('FORCE_HTTPS', false),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
@@ -65,7 +73,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

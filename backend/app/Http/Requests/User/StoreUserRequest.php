@@ -9,7 +9,7 @@ class StoreUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return true; // role hierarchy is enforced in UserController
     }
 
     public function rules(): array
@@ -17,12 +17,11 @@ class StoreUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email', 'max:255'],
-            'password' => ['required', 'confirmed', Password::min(8)],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
+            'phone' => ['nullable', 'string', 'max:20', 'unique:users,phone'],
             'role_id' => ['required_without:role', 'exists:roles,id'],
             'role' => ['required_without:role_id', 'string', 'exists:roles,slug'],
             'is_active' => ['boolean'],
-            'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'], // 2MB
         ];
     }
 }

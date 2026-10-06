@@ -28,7 +28,7 @@ class Booking extends Model
      */
     public function property()
     {
-        return $this->belongsTo(Property::class);
+        return $this->belongsTo(Property::class)->withTrashed();
     }
 
     /**
@@ -36,7 +36,7 @@ class Booking extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     /**
@@ -44,7 +44,7 @@ class Booking extends Model
      */
     public function agent()
     {
-        return $this->belongsTo(User::class , 'agent_id');
+        return $this->belongsTo(User::class, 'agent_id')->withTrashed();
     }
 
     /**

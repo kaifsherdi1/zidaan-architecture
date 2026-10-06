@@ -4,10 +4,11 @@ const api = {
   // Auth
   register: (data) => axiosClient.post('/auth/register', data),
   login: (data) => axiosClient.post('/auth/login', data),
-  logout: () => axiosClient.post('/auth/logout'),
+  logout: () => axiosClient.post('/logout'),
   forgotPassword: (data) => axiosClient.post('/password/forgot', data),
   resetPassword: (data) => axiosClient.post('/password/reset', data),
   getProfile: () => axiosClient.get('/auth/user'),
+  updateProfile: (data) => axiosClient.put('/user/profile', data),
 
   // Properties
   getProperties: (filters = {}) => axiosClient.get('/properties', { params: filters }),

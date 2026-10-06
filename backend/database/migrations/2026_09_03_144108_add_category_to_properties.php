@@ -19,6 +19,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('properties', function (Blueprint $table) {
+            $table->dropIndex(['category']);
             $table->dropColumn('category');
         });
     }

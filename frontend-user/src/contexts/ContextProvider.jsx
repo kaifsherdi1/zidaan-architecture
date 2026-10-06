@@ -35,7 +35,8 @@ export const ContextProvider = ({ children }) => {
     if (token) {
       api.getProfile()
         .then(({ data }) => {
-          setUser(data);
+          // /auth/user returns a JSON resource: { data: { ...user } }
+          setUser(data?.data ?? data);
         })
         .catch((err) => {
           console.error(err);

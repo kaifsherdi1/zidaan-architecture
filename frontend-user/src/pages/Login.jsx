@@ -71,6 +71,21 @@ export default function Login() {
             </Text>
           </div>
 
+          {import.meta.env.VITE_SHOW_DEMO_CREDENTIALS === 'true' && (
+            <button
+              type="button"
+              onClick={() => setForm({ login: 'test@example.com', password: 'Password@123' })}
+              className="w-full text-left border border-black/15 bg-white p-4 hover:border-black/40 transition-colors"
+            >
+              <span className="block text-[10px] uppercase tracking-widest text-black/40 mb-1">
+                Portfolio demo — click to fill
+              </span>
+              <span className="block text-xs font-medium tracking-wide">
+                test@example.com <span className="text-black/40">/</span> Password@123
+              </span>
+            </button>
+          )}
+
           <div className="grid grid-cols-2 border border-black/15">
             {METHODS.map((m) => (
               <button

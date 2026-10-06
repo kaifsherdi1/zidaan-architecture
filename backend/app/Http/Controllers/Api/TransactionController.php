@@ -6,95 +6,90 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Transaction\StoreTransactionRequest;
 use App\Http\Requests\Transaction\UpdateTransactionRequest;
 use App\Http\Resources\TransactionResource;
+use App\Models\Transaction;
 use App\Services\TransactionService;
+use App\Support\Sql;
 use Illuminate\Http\Request;
 
 class TransactionController extends Controller
 {
-    protected $transactionService;
-
-    public function __construct(TransactionService $transactionService)
+    public function __construct(protected TransactionService $transactionService)
     {
-        $this->transactionService = $transactionService;
     }
 
+    /** Admin/Manager — the full ledger. */
     public function index(Request $request)
     {
-        // Admin only or Manager
-        $filters = $request->only(['status', 'agent_id', 'date_from', 'date_to']);
-        $transactions = $this->transactionService->getAllTransactions($filters, 15);
-        return TransactionResource::collection($transactions);
+        $filters = $request->only(['status', 'agent_id', 'date_from', 'date_to', 'search']);
+
+        return TransactionResource::collection(
+            $this->transactionService->getAllTransactions($filters, $this->perPage($request))
+        );
     }
 
+    /** Agent — their own deals. */
     public function agentTransactions(Request $request)
     {
-        $transactions = $this->transactionService->getAgentTransactions($request->user()->id);
-        return TransactionResource::collection($transactions);
+        return TransactionResource::collection(
+            $this->transactionService->getAgentTransactions($request->user()->id, $this->perPage($request))
+        );
     }
 
+    /** Admin/Manager record a deal; agents propose one (always pending, own listings only). */
     public function store(StoreTransactionRequest $request)
     {
-        // If agent, force agent_id to self and cap the status they may set.
-        $data = $request->validated();
-        if ($request->user()->role?->slug === 'agent') {
-            $data['agent_id'] = $request->user()->id;
-            $data['status'] = 'pending';
-        }
+        $transaction = $this->transactionService->createTransaction($request->validated(), $request->user());
 
-        $transaction = $this->transactionService->createTransaction($data);
-        return new TransactionResource($transaction);
+        return (new TransactionResource($transaction))->response()->setStatusCode(201);
     }
 
-    public function show($id)
+    public function show(int $id)
     {
-        $transaction = $this->transactionService->getById($id);
-        abort_if(! $transaction, 404);
-
-        return new TransactionResource($transaction);
+        return new TransactionResource($this->transactionService->getById($id));
     }
 
-    /** Simple invoice PDF for a completed transaction. */
-    public function invoice($id)
+    /** Invoice / deal memo PDF. */
+    public function invoice(int $id)
     {
         $transaction = $this->transactionService->getById($id);
-        abort_if(! $transaction, 404);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.invoice', ['transaction' => $transaction]);
 
         return $pdf->download("invoice-{$transaction->id}.pdf");
     }
 
-    public function update(UpdateTransactionRequest $request, $id)
+    public function update(UpdateTransactionRequest $request, int $id)
     {
-        $data = $request->validated();
-        $transaction = $this->transactionService->updateTransaction($id, $data);
-        return new TransactionResource($transaction);
+        return new TransactionResource($this->transactionService->updateTransaction($id, $request->validated()));
     }
 
-    public function destroy($id)
+    public function destroy(int $id)
     {
         $this->transactionService->deleteTransaction($id);
+
         return response()->noContent();
     }
 
-    /** Earnings / revenue report — scoped to the caller's own transactions for agents. */
+    /** Earnings / revenue summary — scoped to the caller's own deals for agents. */
     public function report(Request $request)
     {
-        $query = \App\Models\Transaction::query();
-        if ($request->user()->role?->slug === 'agent') {
+        $query = Transaction::query();
+        if ($request->user()->hasRole('agent')) {
             $query->where('agent_id', $request->user()->id);
         }
 
         $completed = (clone $query)->where('status', 'completed');
+        $month = Sql::month('transaction_date');
 
         return response()->json([
             'total_completed' => $completed->count(),
-            'total_revenue' => (clone $completed)->sum('amount'),
+            'total_revenue' => (float) (clone $completed)->sum('amount'),
             'total_pending' => (clone $query)->where('status', 'pending')->count(),
+            'pending_value' => (float) (clone $query)->where('status', 'pending')->sum('amount'),
             'by_month' => (clone $completed)
-                ->selectRaw("DATE_FORMAT(transaction_date, '%Y-%m') as month, SUM(amount) as total")
+                ->selectRaw("{$month} as month, SUM(amount) as total")
                 ->where('transaction_date', '>=', now()->subMonths(11)->startOfMonth())
-                ->groupBy('month')->orderBy('month')->get(),
+                ->groupByRaw($month)->orderBy('month')->get(),
         ]);
     }
 }

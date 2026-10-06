@@ -60,6 +60,21 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    public function roleSlug(): ?string
+    {
+        return $this->role?->slug;
+    }
+
+    public function hasRole(string ...$slugs): bool
+    {
+        return in_array($this->roleSlug(), $slugs, true);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->hasRole('admin');
+    }
+
     /**
      * Get the agent profile if user is an agent
      */

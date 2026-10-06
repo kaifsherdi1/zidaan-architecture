@@ -65,9 +65,10 @@ return [
              * Middleware allows to prevent unexpected access to API documentation
              */
             'middleware' => [
-                'api' => [],
+                // Lock the API docs behind auth outside local dev.
+                'api' => env('APP_ENV') === 'local' ? [] : ['auth:sanctum'],
                 'asset' => [],
-                'docs' => [],
+                'docs' => env('APP_ENV') === 'local' ? [] : ['auth:sanctum'],
                 'oauth2_callback' => [],
             ],
 

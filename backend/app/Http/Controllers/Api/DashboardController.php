@@ -36,23 +36,25 @@ class DashboardController extends Controller
     $totalBookings = $bookingsQuery->count();
 
     // Calculate Revenue (completed transactions — see Transaction::status enum)
-    $totalRevenue = $transactionsQuery->clone()->where('status', 'completed')->sum('amount');
+    $totalRevenue = (float) $transactionsQuery->clone()->where('status', 'completed')->sum('amount');
+    $newEnquiries = in_array($roleSlug, ['admin', 'manager'], true) ? \App\Models\Enquiry::where('status', 'new')->count() : 0;
 
     // Total Users / Agents (Admin & Manager only)
-    $totalUsers = in_array($roleSlug, ['admin', 'manager'], true) ? User::count() : 0;
+    $totalUsers = in_array($roleSlug, ['admin', 'manager'], true)
+      ? User::whereHas('role', fn ($q) => $q->where('slug', 'user'))->count()
+      : 0;
     $totalAgents = in_array($roleSlug, ['admin', 'manager'], true)
-      ? User::whereHas('role', fn ($q) => $q->where('slug', 'agent'))->count()
+      ? User::where('is_active', true)->whereHas('role', fn ($q) => $q->where('slug', 'agent'))->count()
       : 0;
 
     // 2. Revenue Trend (Last 6 months)
+    // Grouped by the date the deal closed, not when the row was typed in.
+    $month = \App\Support\Sql::month('transaction_date');
     $revenueTrend = $transactionsQuery->clone()
       ->where('status', 'completed')
-      ->where('created_at', '>=', now()->subMonths(6))
-      ->select(
-      DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
-      DB::raw('SUM(amount) as total')
-    )
-      ->groupBy('month')
+      ->where('transaction_date', '>=', now()->subMonths(5)->startOfMonth())
+      ->selectRaw("{$month} as month, SUM(amount) as total")
+      ->groupByRaw($month)
       ->orderBy('month')
       ->get();
 
@@ -87,6 +89,7 @@ class DashboardController extends Controller
         'total_bookings' => $totalBookings,
         'total_revenue' => $totalRevenue,
         'pending_bookings' => $pendingBookings,
+        'new_enquiries' => $newEnquiries,
       ],
       'charts' => [
         'revenue_trend' => $revenueTrend,

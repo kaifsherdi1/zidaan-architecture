@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   BarChart,
   Bar,
@@ -87,7 +88,7 @@ export default function Dashboard() {
           color="bg-blue-500 text-blue-500"
         />
         {isStaffAdmin ? (
-          <StatCard title="Total Users" value={kpi?.total_users ?? 0} icon={FaUsers} color="bg-green-500 text-green-500" />
+          <StatCard title="Clients" value={kpi?.total_users ?? 0} icon={FaUsers} color="bg-green-500 text-green-500" />
         ) : (
           <StatCard title="Pending Viewings" value={kpi?.pending_bookings ?? 0} icon={FaCalendarCheck} color="bg-purple-500 text-purple-500" />
         )}
@@ -98,6 +99,17 @@ export default function Dashboard() {
         )}
         <StatCard title="Revenue (Completed)" value={fmtINR(kpi?.total_revenue)} icon={FaMoneyBillWave} color="bg-yellow-500 text-yellow-500" />
       </div>
+
+      {isStaffAdmin && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <Link to="/bookings" className="block rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
+            <StatCard title="Viewings awaiting a decision" value={kpi?.pending_bookings ?? 0} icon={FaCalendarCheck} color="bg-purple-500 text-purple-500" />
+          </Link>
+          <Link to="/enquiries" className="block rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
+            <StatCard title="New enquiries" value={kpi?.new_enquiries ?? 0} icon={FaUsers} color="bg-amber-500 text-amber-500" />
+          </Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">

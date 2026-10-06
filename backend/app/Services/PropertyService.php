@@ -15,7 +15,7 @@ class PropertyService
       $perPage = min(max((int) $filters['per_page'], 1), 60);
     }
 
-    $query = Property::query()->with(['agent', 'images']);
+    $query = Property::query()->with(['agent', 'images', 'mainImage']);
 
     if (isset($filters['type'])) {
       $query->where('type', $filters['type']);
@@ -61,7 +61,7 @@ class PropertyService
     }
 
     $sortField = $filters['sort_by'] ?? 'created_at';
-    $sortDirection = $filters['sort_dir'] ?? 'desc';
+    $sortDirection = strtolower($filters['sort_dir'] ?? '') === 'asc' ? 'asc' : 'desc';
     $allowedSorts = ['price', 'created_at', 'area', 'views_count'];
 
     if (in_array($sortField, $allowedSorts)) {
@@ -94,7 +94,6 @@ class PropertyService
     $property->update($data);
 
     if (!empty($images)) {
-      // Optional: logic to replace or append images
       $this->uploadImages($property, $images);
     }
 
@@ -103,21 +102,42 @@ class PropertyService
 
   public function deleteProperty(Property $property)
   {
-    // We are using SoftDeletes, so just delete
+    // Soft delete — images stay on disk until a permanent delete.
     return $property->delete();
+  }
+
+  public function deleteImage(PropertyImage $image): void
+  {
+    $propertyId = $image->property_id;
+    $wasMain = $image->is_main;
+
+    Storage::disk('public')->delete($image->image_path);
+    $image->delete();
+
+    // Promote the next photo so the listing always has a cover image.
+    if ($wasMain) {
+      PropertyImage::where('property_id', $propertyId)->orderBy('order')->first()?->update(['is_main' => true]);
+    }
+    Property::flushCatalogueCache();
   }
 
   protected function uploadImages(Property $property, $images)
   {
-    foreach ($images as $index => $image) {
+    $hasMain = $property->images()->where('is_main', true)->exists();
+    $nextOrder = (int) $property->images()->max('order') + ($property->images()->exists() ? 1 : 0);
+
+    foreach (array_values($images) as $index => $image) {
+      // store() names the file by a random hash + the extension guessed from its
+      // real contents, so client-supplied filenames never reach the disk.
       $path = $image->store('properties/' . $property->id, 'public');
 
       PropertyImage::create([
         'property_id' => $property->id,
         'image_path' => $path,
-        'is_main' => $index === 0, // First image is main by default if not specified
-        'order' => $index
+        'is_main' => ! $hasMain && $index === 0,
+        'order' => $nextOrder + $index,
       ]);
     }
+    Property::flushCatalogueCache();
   }
 }

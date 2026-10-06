@@ -20,7 +20,7 @@ class PropertyFactory extends Factory
       'slug' => $this->faker->unique()->slug(),
       'description' => $this->faker->paragraph(),
       'type' => $this->faker->randomElement(['sale', 'rent']),
-      'status' => $this->faker->randomElement(['available', 'sold', 'rented']),
+      'status' => 'available',
       'price' => $this->faker->numberBetween(100000, 1000000),
       'bedrooms' => $this->faker->numberBetween(1, 5),
       'bathrooms' => $this->faker->numberBetween(1, 3),

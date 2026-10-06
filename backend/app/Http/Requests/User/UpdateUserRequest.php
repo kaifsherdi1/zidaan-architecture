@@ -10,7 +10,7 @@ class UpdateUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return true; // role hierarchy is enforced in UserController
     }
 
     public function rules(): array
@@ -20,11 +20,10 @@ class UpdateUserRequest extends FormRequest
         return [
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'email', 'max:255', Rule::unique('users')->ignore($userId)],
-            'password' => ['sometimes', 'nullable', 'confirmed', Password::min(8)],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'password' => ['sometimes', 'nullable', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
+            'phone' => ['nullable', 'string', 'max:20', Rule::unique('users')->ignore($userId)],
             'role' => ['sometimes', 'string', 'exists:roles,slug'],
             'is_active' => ['sometimes', 'boolean'],
-            'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
         ];
     }
 }

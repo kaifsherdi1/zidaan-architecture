@@ -4,50 +4,52 @@ import { useStateContext } from "../contexts/ContextProvider";
 import { FaCalendarAlt, FaCheck, FaTimes } from "react-icons/fa";
 import { Table, TableHead, TableBody, TableRow, TableCell } from "../components/ui/Table";
 import Card from "../components/ui/Card";
+import Pagination from "../components/ui/Pagination";
+import { apiError, isOfficeStaff, roleOf } from "../utils/auth";
+import { assetUrl } from "../utils/url";
 
 export default function Bookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ current_page: 1, last_page: 1 });
+  const [error, setError] = useState('');
   const { setNotification, user } = useStateContext();
 
-  const roleSlug = typeof user?.role === 'object' ? user?.role?.slug : (user?.role || '');
-  const isStaffAdmin = roleSlug === 'admin' || roleSlug === 'manager';
-  const basePath = isStaffAdmin ? '/admin/bookings' : '/agent/bookings';
+  const roleSlug = roleOf(user);
+  const basePath = isOfficeStaff(user) ? '/admin/bookings' : '/agent/bookings';
 
-  const fetchBookings = (status = null) => {
+  const fetchBookings = () => {
     setLoading(true);
-    const params = status && status !== 'all' ? { status } : {};
+    setError('');
+    const params = { page, ...(filter !== 'all' ? { status: filter } : {}) };
 
     axiosClient.get(basePath, { params })
       .then(({ data }) => {
         setBookings(data.data || []);
-        setLoading(false);
+        setMeta({ current_page: data.meta?.current_page || 1, last_page: data.meta?.last_page || 1 });
       })
-      .catch(() => {
-        setLoading(false);
-      });
+      .catch((err) => setError(apiError(err, 'Could not load bookings.')))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    if (roleSlug) fetchBookings(filter);
+    if (roleSlug) fetchBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, roleSlug]);
+  }, [filter, page, roleSlug]);
+
+  const VERB = { approved: 'approve', rejected: 'reject', completed: 'mark as completed', cancelled: 'cancel' };
 
   const handleStatusUpdate = (id, newStatus) => {
-    if (!window.confirm(`Are you sure you want to mark this viewing as ${newStatus}?`)) return;
+    if (!window.confirm(`Are you sure you want to ${VERB[newStatus]} this viewing? The client will be notified.`)) return;
 
     axiosClient.put(`${basePath}/${id}/status`, { status: newStatus })
       .then(() => {
-        setNotification(`Booking ${newStatus} successfully!`);
-        fetchBookings(filter);
+        setNotification(`Viewing ${newStatus}. The client has been notified.`);
+        fetchBookings();
       })
-      .catch((err) => {
-        const response = err.response;
-        if (response && response.data) {
-          setNotification(response.data.message);
-        }
-      });
+      .catch((err) => setNotification(apiError(err)));
   };
 
   return (
@@ -62,7 +64,8 @@ export default function Bookings() {
           {['all', 'pending', 'approved', 'rejected', 'completed', 'cancelled'].map((status) => (
             <button
               key={status}
-              onClick={() => setFilter(status)}
+              onClick={() => { setFilter(status); setPage(1); }}
+              aria-pressed={filter === status}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all capitalize ${filter === status
                 ? 'bg-primary text-white shadow-sm'
                 : 'text-slate-600 hover:bg-slate-50'
@@ -73,6 +76,8 @@ export default function Bookings() {
           ))}
         </div>
       </div>
+
+      {error && <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm" role="alert">{error}</div>}
 
       <Card>
         <Table>
@@ -101,7 +106,7 @@ export default function Bookings() {
                     <div className="flex items-center gap-4">
                       {booking.property?.image ? (
                         <img
-                          src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://127.0.0.1:8000'}${booking.property.image}`}
+                          src={assetUrl(booking.property.image)}
                           alt={booking.property.title}
                           className="w-12 h-12 object-cover rounded-lg border border-slate-200"
                         />
@@ -147,26 +152,34 @@ export default function Bookings() {
                           <button
                             onClick={() => handleStatusUpdate(booking.id, 'approved')}
                             className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                            title="Approve"
+                            title="Approve" aria-label="Approve viewing"
                           >
                             <FaCheck />
                           </button>
                           <button
                             onClick={() => handleStatusUpdate(booking.id, 'rejected')}
                             className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Reject"
+                            title="Reject" aria-label="Reject viewing"
                           >
                             <FaTimes />
                           </button>
                         </>
                       )}
                       {booking.status === 'approved' && (
-                        <button
-                          onClick={() => handleStatusUpdate(booking.id, 'completed')}
-                          className="text-xs font-medium text-primary hover:underline"
-                        >
-                          Mark completed
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleStatusUpdate(booking.id, 'completed')}
+                            className="text-xs font-medium text-primary hover:underline"
+                          >
+                            Mark completed
+                          </button>
+                          <button
+                            onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
+                            className="text-xs font-medium text-red-600 hover:underline"
+                          >
+                            Cancel
+                          </button>
+                        </>
                       )}
                       {!['pending', 'approved'].includes(booking.status) && <span className="text-slate-400">—</span>}
                     </div>
@@ -177,6 +190,8 @@ export default function Bookings() {
           </TableBody>
         </Table>
       </Card>
+
+      <Pagination currentPage={meta.current_page} totalPages={meta.last_page} onPageChange={setPage} />
     </div>
   );
 }

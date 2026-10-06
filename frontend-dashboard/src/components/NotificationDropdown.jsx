@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { FaBell, FaCheck } from "react-icons/fa";
 import axiosClient from "../axios-client";
-import { Link } from "react-router-dom";
 
 export default function NotificationDropdown() {
   const [notifications, setNotifications] = useState([]);
@@ -13,6 +12,7 @@ export default function NotificationDropdown() {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

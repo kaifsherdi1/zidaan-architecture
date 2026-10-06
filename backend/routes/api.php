@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
@@ -54,7 +55,7 @@ Route::post('/contact', [EnquiryController::class, 'store'])->middleware('thrott
 // ---------------------------------------------------------------------------
 // Authenticated (any role)
 // ---------------------------------------------------------------------------
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
@@ -117,6 +118,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/properties', [PropertyController::class, 'store']);
         Route::put('/properties/{property}', [PropertyController::class, 'update'])->whereNumber('property');
         Route::delete('/properties/{property}', [PropertyController::class, 'destroy'])->whereNumber('property');
+        Route::delete('/properties/{property}/images/{image}', [PropertyController::class, 'destroyImage'])->whereNumber(['property', 'image']);
         Route::post('/properties/{id}/restore', [PropertyController::class, 'restore'])->whereNumber('id');
         Route::delete('/properties/{id}/force', [PropertyController::class, 'forceDelete'])->whereNumber('id');
         Route::post('/properties/bulk-delete', [PropertyController::class, 'bulkDelete']);
@@ -173,5 +175,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/properties', [ReportController::class, 'exportProperties']);
         Route::get('/reports/bookings', [ReportController::class, 'exportBookings']);
         Route::get('/reports/transactions', [ReportController::class, 'exportTransactions']);
+
+        // Audit trail — admins only
+        Route::get('/activity', [ActivityLogController::class, 'index'])->middleware('role:admin');
     });
 });

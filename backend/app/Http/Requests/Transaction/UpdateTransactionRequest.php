@@ -16,7 +16,7 @@ class UpdateTransactionRequest extends FormRequest
         return [
             'amount' => ['sometimes', 'numeric', 'min:0'],
             'transaction_date' => ['sometimes', 'date'],
-            'commission_rate' => ['sometimes', 'numeric', 'min:0', 'max:100'],
+            
             'status' => ['sometimes', 'in:pending,completed,cancelled'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];

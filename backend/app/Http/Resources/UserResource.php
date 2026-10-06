@@ -27,16 +27,15 @@ class UserResource extends JsonResource
                 ];
             }),
             
-            // Agent information (if user is an agent)
-            'agent' => $this->when($this->agent, function () {
-                return [
-                    'id' => $this->agent->id,
-                    'specialization' => $this->agent->specialization,
-                    'experience_years' => $this->agent->experience_years,
-                    'total_sales' => $this->agent->total_sales,
-                    'rating' => $this->agent->rating,
-                ];
-            }),
+            // Agent profile (if user is an agent and one exists)
+            'agent' => $this->when($this->relationLoaded('agent') && $this->agent, fn () => [
+                'id' => $this->agent->id,
+                'bio' => $this->agent->bio,
+                'years_of_experience' => $this->agent->years_of_experience,
+                'license_number' => $this->agent->license_number,
+            ]),
+            'listings_count' => $this->whenCounted('properties'),
+            'properties' => PropertyResource::collection($this->whenLoaded('properties')),
             
             // Timestamps
             'created_at' => $this->created_at,

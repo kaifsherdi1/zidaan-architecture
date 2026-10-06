@@ -45,9 +45,13 @@ class UserRepository
       });
     }
 
-    // Apply sorting
-    $sortBy = $filters['sort_by'] ?? 'created_at';
-    $sortOrder = $filters['sort_order'] ?? 'desc';
+    if (!empty($filters['trashed']) && filter_var($filters['trashed'], FILTER_VALIDATE_BOOLEAN)) {
+      $query->onlyTrashed();
+    }
+
+    // Sorting — whitelisted, since these come straight from the query string
+    $sortBy = in_array($filters['sort_by'] ?? null, ['name', 'email', 'created_at'], true) ? $filters['sort_by'] : 'created_at';
+    $sortOrder = strtolower($filters['sort_order'] ?? '') === 'asc' ? 'asc' : 'desc';
     $query->orderBy($sortBy, $sortOrder);
 
     return $query->paginate($perPage);

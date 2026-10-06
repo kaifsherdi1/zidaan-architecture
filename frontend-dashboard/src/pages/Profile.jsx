@@ -3,7 +3,6 @@ import axiosClient from "../axios-client";
 import { useStateContext } from "../contexts/ContextProvider";
 import { FaUser, FaLock, FaSave, FaExclamationCircle } from "react-icons/fa";
 import Button from "../components/ui/Button";
-import Input from "../components/ui/Input";
 import Card from "../components/ui/Card";
 
 export default function Profile() {

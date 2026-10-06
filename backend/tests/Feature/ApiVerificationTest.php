@@ -47,26 +47,25 @@ class ApiVerificationTest extends TestCase
     $response = $this->postJson('/api/auth/register', [
       'name' => 'New User',
       'email' => 'newuser@example.com',
-      'password' => 'password',
-      'password_confirmation' => 'password',
-      'role' => 'user' // Assuming generic registration defaults to user or accepts role
+      'password' => 'Password@123',
+      'password_confirmation' => 'Password@123',
     ]);
     $response->assertStatus(201)->assertJsonStructure(['user', 'access_token']);
 
     // Login
     $response = $this->postJson('/api/auth/login', [
       'email' => 'newuser@example.com',
-      'password' => 'password',
+      'password' => 'Password@123',
     ]);
     $response->assertStatus(200)->assertJsonStructure(['user', 'access_token']);
     $token = $response->json('access_token');
 
     // Me
-    $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token, 'Accept' => 'application/json'])->getJson('/api/auth/me');
+    $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token, 'Accept' => 'application/json'])->getJson('/api/me');
     $response->assertStatus(200);
 
     // Logout
-    $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token, 'Accept' => 'application/json'])->postJson('/api/auth/logout');
+    $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token, 'Accept' => 'application/json'])->postJson('/api/logout');
     $response->assertStatus(200);
   }
 
@@ -88,25 +87,23 @@ class ApiVerificationTest extends TestCase
     // Manager Create Property
     $manager = User::factory()->create(['role_id' => Role::where('slug', 'manager')->first()->id]);
     Sanctum::actingAs($manager, ['*']);
-    $agentProfile = Agent::where('user_id', $this->agent->id)->first();
     $response = $this->postJson('/api/manager/properties', [
       'title' => 'Manager Property',
       'description' => 'Description',
       'price' => 500000,
       'type' => 'sale',
+      'category' => 'apartment',
       'status' => 'available',
       'bedrooms' => 3,
       'bathrooms' => 2,
       'area' => 1200,
-      'area_unit' => 'sqft',
       'address' => '123 Main St',
       'city' => 'Manhattan',
       'state' => 'NY',
       'country' => 'USA',
       'zip_code' => '10001',
-      'agent_id' => $agentProfile->id
+      'agent_id' => $this->agent->id,
     ]);
-    $response->assertStatus(201);
     $response->assertStatus(201);
   }
 
@@ -140,8 +137,8 @@ class ApiVerificationTest extends TestCase
     Sanctum::actingAs($this->user, ['*']);
     $response = $this->postJson('/api/user/bookings', [
       'property_id' => $property->id,
-      'booking_date' => now()->addDays(5)->format('Y-m-d'),
-      'booking_time' => '10:00',
+      'visit_date' => now()->addDays(5)->format('Y-m-d'),
+      'visit_time' => '10:00',
       'message' => 'I want to see this.'
     ]);
     $response->assertStatus(201);

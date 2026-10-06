@@ -8,6 +8,8 @@ import Button from '../components/ui/Button';
 import PropertyTile from '../components/PropertyTile';
 import { IMAGES } from '../data/images';
 import api from '../services/api';
+import { apiError } from '../utils/errors';
+import Honeypot from '../components/ui/Honeypot';
 
 const STEPS = [
   { step: '01', title: 'Valuation', desc: 'A free, no-obligation appraisal based on real comparable evidence.' },
@@ -24,12 +26,12 @@ const EMPTY = {
   type: 'House',
   bedrooms: '',
   price: '',
-  message: '',
-};
+  message: '', website: '' };
 
 export default function SellProperty() {
   const [form, setForm] = useState(EMPTY);
   const [status, setStatus] = useState('idle');
+  const [error, setError] = useState('');
   const [sold, setSold] = useState([]);
 
   useEffect(() => {
@@ -44,13 +46,15 @@ export default function SellProperty() {
   const submit = async (e) => {
     e.preventDefault();
     setStatus('sending');
+    setError('');
     try {
       await api.contactOp({ ...form, subject: 'Sell enquiry' });
-    } catch {
-      /* endpoint optional */
+      setStatus('sent');
+      setForm(EMPTY);
+    } catch (err) {
+      setStatus('error');
+      setError(apiError(err, 'Your request could not be sent. Please try again, or call the studio.'));
     }
-    setStatus('sent');
-    setForm(EMPTY);
   };
 
   return (
@@ -96,7 +100,11 @@ export default function SellProperty() {
                   </p>
                 </div>
               ) : (
-                <form onSubmit={submit} className="space-y-7">
+                <form onSubmit={submit} className="space-y-7 relative">
+                  <Honeypot value={form.website} onChange={change} />
+                  {error && (
+                    <p role="alert" className="border border-red-300 bg-red-50 text-red-700 text-sm px-4 py-3">{error}</p>
+                  )}
                   <span className="eyebrow">Request a valuation</span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
                     <label className="block">

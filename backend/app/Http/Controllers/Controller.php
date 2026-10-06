@@ -34,4 +34,10 @@ use Illuminate\Routing\Controller as BaseController;
 class Controller extends BaseController
 {
     use AuthorizesRequests, ValidatesRequests;
+
+    /** Client-requested page size, clamped so one request can't pull a whole table. */
+    protected function perPage(\Illuminate\Http\Request $request, int $default = 15, int $max = 100): int
+    {
+        return max(1, min((int) $request->get('per_page', $default), $max));
+    }
 }

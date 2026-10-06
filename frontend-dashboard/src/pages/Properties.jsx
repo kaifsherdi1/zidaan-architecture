@@ -3,18 +3,17 @@ import { Link } from "react-router-dom";
 import axiosClient from "../axios-client";
 import {
   FaPlus, FaEdit, FaTrash, FaEye, FaMapMarkerAlt, FaBed, FaBath,
-  FaRulerCombined, FaFileExcel, FaSearch, FaTrashRestore, FaHistory,
-  FaCheckSquare, FaSquare
+  FaRulerCombined, FaFileExcel, FaSearch, FaTrashRestore
 } from "react-icons/fa";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
-import Input from "../components/ui/Input";
 import { Table, TableHead, TableBody, TableRow, TableCell } from "../components/ui/Table";
 import Pagination from "../components/ui/Pagination";
 import Modal from "../components/ui/Modal";
 import { useStateContext } from "../contexts/ContextProvider";
 
-const API_ROOT = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api").replace(/\/api$/, '');
+import { assetUrl } from "../utils/url";
+import { apiError } from "../utils/auth";
 
 export default function Properties() {
   const [properties, setProperties] = useState([]);
@@ -63,8 +62,9 @@ export default function Properties() {
           setProperties([]);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         setLoading(false);
+        setNotification(apiError(err, 'Could not load properties.'));
       });
   };
 
@@ -107,9 +107,9 @@ export default function Properties() {
         setTimeout(() => setNotification(""), 3000);
       })
       .catch((err) => {
-        console.error(err);
         setDeleteModalOpen(false);
-        alert("An error occurred. Please check permissions.");
+        setNotification(apiError(err));
+        setTimeout(() => setNotification(""), 6000);
       });
   };
 
@@ -286,7 +286,7 @@ export default function Properties() {
                     <div className="flex items-center gap-4">
                       {property.main_image ? (
                         <img
-                          src={`${API_ROOT}${property.main_image}`}
+                          src={assetUrl(property.main_image)}
                           alt={property.title}
                           className="w-16 h-16 object-cover rounded-lg border border-slate-200"
                         />
@@ -333,7 +333,13 @@ export default function Properties() {
                     <div className="flex items-center justify-end gap-2">
                       {viewMode === 'active' ? (
                         <>
-                          <Link to={`/properties/${property.id}`} className="p-2 text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg transition-colors">
+                          <Link
+                            to={isStaffAdmin ? `/properties/${property.id}` : '#'}
+                            onClick={(e) => { if (!isStaffAdmin) { e.preventDefault(); window.open(`${import.meta.env.VITE_PUBLIC_SITE_URL || 'http://localhost:5174'}/properties/${property.id}`, '_blank', 'noopener'); } }}
+                            className="p-2 text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg transition-colors"
+                            aria-label={`View ${property.title}`}
+                            title="View"
+                          >
                             <FaEye />
                           </Link>
                           {isStaffAdmin && (

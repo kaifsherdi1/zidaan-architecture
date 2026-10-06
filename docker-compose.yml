@@ -1,0 +1,100 @@
+name: zidaan
+
+# Backend-only stack for the free-tier deployment: the two frontends are
+# static builds hosted on Cloudflare Pages, and MySQL is an external managed
+# instance (Aiven free tier) — neither runs here. This VM only needs to run
+# the API, its queue/scheduler, Redis, and the Caddy edge for free HTTPS.
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks: [internal]
+
+  app:
+    build:
+      context: ./backend
+      target: runtime
+    restart: unless-stopped
+    env_file: [./backend/.env.production]
+    environment:
+      RUN_RELEASE_TASKS: "true"
+      RUN_SEED: "${RUN_SEED:-false}"
+      REDIS_HOST: redis
+    volumes:
+      - storage_data:/var/www/html/storage/app/public
+      - ./backend/certs:/var/www/html/storage/certs:ro
+    depends_on:
+      redis: { condition: service_started }
+    networks: [internal]
+
+  queue:
+    build:
+      context: ./backend
+      target: runtime
+    restart: unless-stopped
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600", "--max-jobs=500"]
+    env_file: [./backend/.env.production]
+    environment:
+      REDIS_HOST: redis
+    volumes:
+      - storage_data:/var/www/html/storage/app/public
+      - ./backend/certs:/var/www/html/storage/certs:ro
+    depends_on:
+      redis: { condition: service_started }
+      app: { condition: service_started }
+    networks: [internal]
+
+  scheduler:
+    build:
+      context: ./backend
+      target: runtime
+    restart: unless-stopped
+    command: ["php", "artisan", "schedule:work"]
+    env_file: [./backend/.env.production]
+    environment:
+      REDIS_HOST: redis
+    volumes:
+      - ./backend/certs:/var/www/html/storage/certs:ro
+    depends_on:
+      redis: { condition: service_started }
+      app: { condition: service_started }
+    networks: [internal]
+
+  web:
+    build:
+      context: ./backend
+      target: web
+    restart: unless-stopped
+    volumes:
+      - storage_data:/var/www/html/storage/app/public:ro
+    depends_on:
+      app: { condition: service_started }
+    networks: [internal]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env — e.g. a free DuckDNS subdomain}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web]
+    networks: [internal]
+
+volumes:
+  redis_data:
+  storage_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:

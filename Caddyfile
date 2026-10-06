@@ -1,0 +1,15 @@
+# API-only edge. The two frontends are static builds on Cloudflare Pages and
+# talk to this domain cross-origin (see backend/.env.production CORS_ALLOWED_ORIGINS).
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	reverse_proxy web:80
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
