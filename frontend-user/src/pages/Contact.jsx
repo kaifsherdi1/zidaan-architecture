@@ -7,30 +7,46 @@ import { Mail, Phone, MapPin, Check } from 'lucide-react';
 import { COMPANY } from '../data/site';
 import { IMAGES } from '../data/images';
 import api from '../services/api';
+import { apiError } from '../utils/errors';
+import Honeypot from '../components/ui/Honeypot';
 
 const CARDS = [
-  { title: 'Studio', icon: MapPin, lines: [COMPANY.address.line1, COMPANY.address.line2] },
-  { title: 'Email', icon: Mail, lines: [COMPANY.email, COMPANY.salesEmail] },
-  { title: 'Phone', icon: Phone, lines: [COMPANY.phone, COMPANY.hours] },
+  {
+    title: 'Studio',
+    icon: MapPin,
+    lines: [{ text: COMPANY.address.line1, href: COMPANY.mapUrl }, { text: COMPANY.address.line2, href: COMPANY.mapUrl }],
+  },
+  {
+    title: 'Email',
+    icon: Mail,
+    lines: [COMPANY.email, COMPANY.salesEmail].map((e) => ({ text: e, href: `mailto:${e}` })),
+  },
+  {
+    title: 'Phone',
+    icon: Phone,
+    lines: [...COMPANY.phones.map((p) => ({ text: p.label, href: p.href })), { text: COMPANY.hours }],
+  },
 ];
 
 export default function Contact() {
-  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '', website: '' });
   const [status, setStatus] = useState('idle'); // idle | sending | sent | error
+  const [error, setError] = useState('');
 
   const change = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   const submit = async (e) => {
     e.preventDefault();
     setStatus('sending');
+    setError('');
     try {
       await api.contactOp(form);
       setStatus('sent');
-      setForm({ name: '', email: '', subject: '', message: '' });
-    } catch {
-      // The public contact endpoint may not exist yet — treat as success for UX.
-      setStatus('sent');
-      setForm({ name: '', email: '', subject: '', message: '' });
+      setForm({ name: '', email: '', subject: '', message: '', website: '' });
+    } catch (err) {
+      // Keep what they typed so nothing is lost; tell them it did not go through.
+      setStatus('error');
+      setError(apiError(err, 'Your message could not be sent. Please try again, or email us directly.'));
     }
   };
 
@@ -52,8 +68,18 @@ export default function Contact() {
                 <c.icon size={24} className="text-black mb-6" />
                 <h3 className="text-sm font-bold uppercase tracking-[0.18em] mb-4">{c.title}</h3>
                 {c.lines.map((l) => (
-                  <p key={l} className="text-sm text-secondary font-light leading-relaxed">
-                    {l}
+                  <p key={l.text} className="text-sm text-secondary font-light leading-relaxed">
+                    {l.href ? (
+                      <a
+                        href={l.href}
+                        {...(l.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                        className="hover:text-black transition-colors"
+                      >
+                        {l.text}
+                      </a>
+                    ) : (
+                      l.text
+                    )}
                   </p>
                 ))}
               </Reveal>
@@ -84,7 +110,11 @@ export default function Contact() {
                   </p>
                 </div>
               ) : (
-                <form onSubmit={submit} className="space-y-8">
+                <form onSubmit={submit} className="space-y-8 relative">
+                  <Honeypot value={form.website} onChange={change} />
+                  {error && (
+                    <p role="alert" className="border border-red-300 bg-red-50 text-red-700 text-sm px-4 py-3">{error}</p>
+                  )}
                   <label className="block">
                     <span className="eyebrow">Full name*</span>
                     <input required name="name" value={form.name} onChange={change} className="field-input" placeholder="Your name" />

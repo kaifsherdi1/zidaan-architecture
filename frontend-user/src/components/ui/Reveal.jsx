@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 /**
  * Lightweight scroll-reveal wrapper (IntersectionObserver, no deps).
  * Usage: <Reveal><h2>…</h2></Reveal> or <Reveal as="section" delay={120}>…</Reveal>
+ * Variants: up (default), left, right, scale, fade.
  */
 export default function Reveal({
   children,
@@ -10,6 +11,7 @@ export default function Reveal({
   delay = 0,
   className = '',
   once = true,
+  variant = 'up', // up | left | right | scale | fade
   ...props
 }) {
   const ref = useRef(null);
@@ -43,7 +45,7 @@ export default function Reveal({
   return (
     <Tag
       ref={ref}
-      className={`reveal ${visible ? 'is-visible' : ''} ${className}`}
+      className={`reveal reveal-${variant} ${visible ? 'is-visible' : ''} ${className}`}
       style={{ transitionDelay: `${delay}ms` }}
       {...props}
     >

@@ -2,19 +2,31 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Facebook, Twitter, Instagram, Linkedin, ArrowRight, Check } from 'lucide-react';
 import { COMPANY, FOOTER_NAV, SOCIALS, LOGO } from '../data/site';
+import api from '../services/api';
+import { apiError } from '../utils/errors';
 
 const ICONS = { Facebook, Twitter, Instagram, Linkedin };
 
 export default function Footer() {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
 
+  // Sign-ups land in the studio's Enquiries inbox in the dashboard.
   const submit = (e) => {
     e.preventDefault();
-    if (!email) return;
-    setSent(true);
-    setEmail('');
-    setTimeout(() => setSent(false), 4000);
+    if (!email || sending) return;
+    setSending(true);
+    setError('');
+    api.contactOp({ name: 'Newsletter subscriber', email, subject: 'Newsletter signup' })
+      .then(() => {
+        setSent(true);
+        setEmail('');
+        setTimeout(() => setSent(false), 4000);
+      })
+      .catch((err) => setError(apiError(err, 'Could not sign you up. Please try again.')))
+      .finally(() => setSending(false));
   };
 
   return (
@@ -54,6 +66,9 @@ export default function Footer() {
                 {sent ? <Check size={18} /> : <ArrowRight size={18} />}
               </button>
             </div>
+            {error && (
+              <span role="alert" className="mt-3 text-xs text-red-700">{error}</span>
+            )}
             {sent && (
               <span className="mt-3 text-[11px] uppercase tracking-[0.2em] text-black/50">
                 Thank you — you’re on the list.
@@ -115,11 +130,16 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 py-10 border-t border-black/10">
           <div>
             <span className="eyebrow">Studio</span>
-            <p className="text-sm text-secondary font-light">
+            <a
+              href={COMPANY.mapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sm text-secondary font-light hover:text-black transition-colors"
+            >
               {COMPANY.address.line1}
               <br />
               {COMPANY.address.line2}
-            </p>
+            </a>
           </div>
           <div>
             <span className="eyebrow">Enquiries</span>
@@ -129,13 +149,17 @@ export default function Footer() {
             >
               {COMPANY.email}
             </a>
-            <br />
-            <a
-              href={COMPANY.phoneHref}
-              className="text-sm text-secondary font-light hover:text-black transition-colors"
-            >
-              {COMPANY.phone}
-            </a>
+            {COMPANY.phones.map((p) => (
+              <React.Fragment key={p.href}>
+                <br />
+                <a
+                  href={p.href}
+                  className="text-sm text-secondary font-light hover:text-black transition-colors"
+                >
+                  {p.label}
+                </a>
+              </React.Fragment>
+            ))}
           </div>
           <div>
             <span className="eyebrow">Hours</span>

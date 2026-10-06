@@ -1,9 +1,20 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+
+const EASE = [0.16, 1, 0.3, 1];
+
+// Staggered entrance for the hero's text blocks.
+const item = (i) => ({
+  initial: { opacity: 0, y: 36 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 1, ease: EASE, delay: 0.15 + i * 0.12 },
+});
 
 /**
  * Standard inner-page hero. Either an image banner (image prop) or a
- * clean typographic header on white (default).
+ * clean typographic header on white (default). Image heroes drift with a
+ * parallax as the page scrolls and the copy fades away.
  */
 export default function PageHero({
   eyebrow,
@@ -15,22 +26,35 @@ export default function PageHero({
   actions,
 }) {
   const isImage = Boolean(image);
+  const ref = useRef(null);
+  const reduce = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] });
+  const imgY = useTransform(scrollYProgress, [0, 1], ['0%', '30%']);
+  const imgScale = useTransform(scrollYProgress, [0, 1], [1.08, 1.2]);
+  const textY = useTransform(scrollYProgress, [0, 1], [0, -80]);
+  const textOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  const m = (i) => (reduce ? {} : item(i));
 
   return (
     <section
+      ref={ref}
       className={
         isImage
-          ? 'relative w-full min-h-[70vh] flex items-end overflow-hidden'
+          ? 'relative w-full min-h-[70vh] flex items-end overflow-hidden bg-black'
           : 'bg-white pt-36 sm:pt-44 pb-14 sm:pb-20'
       }
     >
       {isImage && (
         <>
-          <img
+          <motion.img
             src={image}
             alt=""
             aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover"
+            style={reduce ? undefined : { y: imgY, scale: imgScale }}
+            initial={reduce ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.2, ease: 'easeOut' }}
+            className="absolute inset-0 w-full h-full object-cover will-change-transform"
           />
           {/* content legibility */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/20" />
@@ -39,7 +63,8 @@ export default function PageHero({
         </>
       )}
 
-      <div
+      <motion.div
+        style={isImage && !reduce ? { y: textY, opacity: textOpacity } : undefined}
         className={`section-container relative z-10 ${
           isImage ? 'pt-36 sm:pt-40 pb-14 sm:pb-20' : ''
         }`}
@@ -48,7 +73,8 @@ export default function PageHero({
           className={`${align === 'center' ? 'mx-auto text-center' : ''} max-w-3xl`}
         >
           {breadcrumb && (
-            <nav
+            <motion.nav
+              {...m(0)}
               className={`mb-6 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.3em] ${
                 isImage ? 'text-white/60' : 'text-black/35'
               } ${align === 'center' ? 'justify-center' : ''}`}
@@ -65,42 +91,51 @@ export default function PageHero({
                   {i < breadcrumb.length - 1 && <span>/</span>}
                 </span>
               ))}
-            </nav>
+            </motion.nav>
           )}
 
           {eyebrow && (
-            <span className={isImage ? 'eyebrow-light' : 'eyebrow'}>{eyebrow}</span>
+            <motion.span {...m(1)} className={isImage ? 'eyebrow-light' : 'eyebrow'}>
+              {eyebrow}
+            </motion.span>
           )}
 
-          <h1
-            className={`font-sans font-bold uppercase tracking-tighter leading-[0.92] text-4xl sm:text-6xl lg:text-7xl ${
-              isImage ? 'text-white' : 'text-black'
-            }`}
-          >
-            {title}
-          </h1>
+          <div className="overflow-hidden pb-[0.1em]">
+            <motion.h1
+              initial={reduce ? false : { y: '105%' }}
+              animate={{ y: 0 }}
+              transition={{ duration: 1.1, ease: EASE, delay: 0.3 }}
+              className={`font-sans font-bold uppercase tracking-tighter leading-[0.92] text-4xl sm:text-6xl lg:text-7xl ${
+                isImage ? 'text-white' : 'text-black'
+              }`}
+            >
+              {title}
+            </motion.h1>
+          </div>
 
           {intro && (
-            <p
+            <motion.p
+              {...m(3)}
               className={`mt-7 text-base sm:text-lg font-light leading-relaxed ${
                 isImage ? 'text-white/80' : 'text-secondary'
               } ${align === 'center' ? 'mx-auto' : ''} max-w-xl`}
             >
               {intro}
-            </p>
+            </motion.p>
           )}
 
           {actions && (
-            <div
+            <motion.div
+              {...m(4)}
               className={`mt-9 flex flex-wrap gap-4 ${
                 align === 'center' ? 'justify-center' : ''
               }`}
             >
               {actions}
-            </div>
+            </motion.div>
           )}
         </div>
-      </div>
+      </motion.div>
     </section>
   );
 }

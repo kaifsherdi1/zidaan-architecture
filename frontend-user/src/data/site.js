@@ -16,12 +16,15 @@ export const COMPANY = {
   email: 'hello@zidaan.com',
   salesEmail: 'sales@zidaan.com',
   careersEmail: 'careers@zidaan.com',
-  phone: '+91 22 4890 1200',
-  phoneHref: 'tel:+912248901200',
+  phones: [
+    { label: '+91 78297 47061', href: 'tel:+917829747061' },
+    { label: '+91 90192 02369', href: 'tel:+919019202369' },
+  ],
   address: {
-    line1: 'Kalpataru Prime, 4th Floor, Prabhadevi',
-    line2: 'Mumbai, Maharashtra 400025',
+    line1: 'Karwar Road, Hubli',
+    line2: 'Karnataka, India',
   },
+  mapUrl: 'https://www.google.com/maps/search/?api=1&query=Karwar+Road+Hubli+Karnataka+India',
   hours: 'Mon – Sat · 10:00 – 19:00 IST',
 };
 
